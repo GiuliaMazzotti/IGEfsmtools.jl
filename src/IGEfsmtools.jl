@@ -6,6 +6,7 @@ using Dates
 using PrettyTables
 using Infiltrator
 using ProgressMeter
+using NCDatasets
 
 include("prepare_landuse.jl")
 include("utils.jl")
