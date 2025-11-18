@@ -43,8 +43,8 @@ function setup_example(area)
     met = MET{Float32,Int32}()
     
     # read meteo file
-    df_meteo = Dict("lautaret" => CSV.read("C:/Users/elise/Documents/Thèse/Workspace/Data/lautaret/2017-2024_Lautaret_halfhour_input_corr.csv", DataFrame),
-                    "slf" =>  CSV.read("C:/Users/elise/Documents/Thèse/Workspace/GitHub/FSMOSHD.jl/data/input_SLF_5WJ.txt", DataFrame))[area]
+    df_meteo = Dict("lautaret" => CSV.read("C:/Users/elise/Documents/These/Workspace/Data/lautaret/2017-2024_Lautaret_halfhour_input_corr.csv", DataFrame),
+                    "slf" =>  CSV.read("C:/Users/elise/Documents/These/Workspace/GitHub/FSMOSHD.jl/data/input_SLF_5WJ.txt", DataFrame))[area]
     return fsm, met, df_meteo
 
 end
@@ -109,6 +109,7 @@ function run_fsm(area, fsm, met, df_meteo)
         
             # set time 
             t = DateTime(row["year"], row["month"], row["day"], row["hour"])
+        
         end
 
         # run model and update states
