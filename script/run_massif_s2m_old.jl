@@ -6,38 +6,41 @@ using DataFrames
 using FSMOSHD
 using NCDatasets
 using Base: findall
+using ArchGDAL
+using GeoDataFrames
 # using IGEfsmtools
-
 
 # initialization function
     # sets parameters (topo, meteo), configuration, variables (format)
     # opens meteo file
-function setup_example(area, station)
+function setup_example(massif, alt)
 
     # read meteo file
-    df_meteo = Dict("s2m_pt" => Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/postes/meteo/FORCING_1958080106_1959080106.nc"))[area]
-    shapefile = CSV.read("C:/Users/elise/Documents/These/Workspace/Data/S2M/shapefile/stations_reanalysis_S2M.csv", DataFrame)
-    shapefile.Name = strip.(string.(shapefile.Name))
-    id_station = Int32(findfirst(shapefile.Name .== station))
-    elev = shapefile[shapefile.Name .== station, "Elevation"][1]
+    df_meteo = Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/FORCING_1958080106_2024080106.nc")
+    massif_shp = ArchGDAL.read("C:/Users/elise/Documents/These/Workspace/Data/S2M/shapefile/massifs_alpes_2154.shp")
+    shapefile = ArchGDAL.getlayer(massif_shp, 0) |> DataFrame
+    id_massif = Int32(shapefile[shapefile.nom .== massif, "massif_num"])
+
+    # massif_number
+    # PISTE TEMPORAIRE : df_meteo[df_meteo["massif"].==23, :]
 
     # set landuse properties
     lus = Dict()
     lus["skyvf"] = Dict("data" => [1.0;;])           
     lus["x"] = Dict("data" => [1.0;;])
     lus["y"] = Dict("data" => [1.0;;])
-    lus["dem"] = Dict("s2m_pt" => Dict("data" => [Float32(elev);;]))[area] 
+    lus["dem"] = Dict("data" => [Float32(alt);;])
     lus["slopemu"] = Dict("data" => [1.0;;])
     lus["xi"] = Dict("data" => [1.0;;])
     lus["Ld"] = Dict("data" => [1.0;;])
     lus["prec_multi"] = Dict("data" => [1.0;;])
     
     # define custom settings
-    settings = Dict("tile" => "open", "params" => Dict("s2m_pt" => Dict("wind_scaling" => 0.7,
-                                                                          "dt" => 3600,
-                                                                          "zT" => 1.5,
-                                                                          "zU" => 5.0,
-                                                                          "zRH" => 1.5))[area])
+    settings = Dict("tile" => "open", "params" => Dict("wind_scaling" => 0.7,
+                                                        "dt" => 3600,
+                                                        "zT" => 1.5,
+                                                        "zU" => 5.0,
+                                                        "zRH" => 1.5))
     
     # create fsm struct
     fsm = setup(Float32, Int32, lus, 1, 1, settings)
@@ -45,12 +48,12 @@ function setup_example(area, station)
     # define meteo data struct
     met = MET{Float32,Int32}()
     
-     return id_station, fsm, met, df_meteo
+     return id_massif, fsm, met, df_meteo
 
 end
 
 #####################################################################################
-function run_fsm(id_station, fsm, met, df_meteo)
+function run_fsm(id_massif, fsm, met, df_meteo)
 
     # allocate output variable-wise
     hs = zeros(size(df_meteo["time"][:])[1])
@@ -66,7 +69,7 @@ function run_fsm(id_station, fsm, met, df_meteo)
     swemin = zeros(size(df_meteo["time"][:])[1])
     swemax = zeros(size(df_meteo["time"][:])[1])
     
-    sf24 = [sum(df_meteo["Snowf"][id_station, max(1, i-23):i]) for i in 1:length(df_meteo["Snowf"][id_station,:])]
+    # sf24 = [sum(df_meteo["Snowf"][id_station, max(1, i-23):i]) for i in 1:length(df_meteo["Snowf"][id_station,:])]
 
     # time loop
     for i in 1:size(df_meteo["time"][:])[1]
@@ -76,24 +79,24 @@ function run_fsm(id_station, fsm, met, df_meteo)
         met.month .= month.(df_meteo["time"][i])
         met.day .= day.(df_meteo["time"][i])
         met.hour .= hour.(df_meteo["time"][i])
-        met.Sdir .= df_meteo["DIR_SWdown"][id_station, i]
-        met.Sdif .= df_meteo["SCA_SWdown"][id_station, i]
-        met.Sdird .= df_meteo["DIR_SWdown"][id_station, i]
-        met.LW .= df_meteo["LWdown"][id_station, i]
-        met.Sf .= df_meteo["Snowf"][id_station, i]
-        met.Rf .= df_meteo["Rainf"][id_station, i] 
-        met.Ta .= df_meteo["Tair"][id_station, i]
-        met.RH .= df_meteo["Qair"][id_station, i] 
-        met.Ua .= df_meteo["Wind"][id_station, i] 
-        met.Ps .= df_meteo["PSurf"][id_station, i]
-        met.Sf24h .= sf24[i]
+        met.Sdir .= df_meteo["DIR_SWdown"][id_massif, i]
+        met.Sdif .= df_meteo["SCA_SWdown"][id_massif, i]
+        met.Sdird .= df_meteo["DIR_SWdown"][id_massif, i]
+        met.LW .= df_meteo["LWdown"][id_massif, i]
+        met.Sf .= df_meteo["Snowf"][id_massif, i]*Int32(3600)
+        met.Rf .= df_meteo["Rainf"][id_massif, i]*Int32(3600) 
+        met.Ta .= df_meteo["Tair"][id_massif, i]
+        met.RH .= df_meteo["Qair"][id_massif, i] 
+        met.Ua .= df_meteo["Wind"][id_massif, i] 
+        met.Ps .= df_meteo["PSurf"][id_massif, i]
+        met.Sf24h .= sum(df_meteo["Snowf"][id_massif, max(1, i-23):i]) # sf24[i]
     
         # set time 
         t = df_meteo["time"][i]
 
         # run model and update states
         step!(fsm, met, t)
-        
+        println(i)
         # write output
         hs[i] = dropdims(sum(fsm.Ds, dims=1), dims=1)[1, 1]
         if fsm.Nsnow[1, 1] == 1
@@ -117,6 +120,7 @@ function run_fsm(id_station, fsm, met, df_meteo)
     alb_snow = copy(alb) 
     alb_snow[alb .< 0.6] .= NaN
 
+
     # write results to dataframe
     time = df_meteo["time"]
 
@@ -126,15 +130,15 @@ function run_fsm(id_station, fsm, met, df_meteo)
 
 end
 #####################################################################################
-area = "s2m_pt"
-station = "GALIBIER-NIVOSE"
+massif = "Grandes-Rousses" # "Grandes-Rousses", "Oisans", "Thabor"
+alt = 2100
 
 print("setup")
-id_station, fsm, met, df_meteo = setup_example(area, station) 
+id_station, fsm, met, df_meteo = setup_example(massif) 
 
 print("fsm")
-df_results = run_fsm(id_station, fsm, met, df_meteo)
+df_results = run_fsm(id_massif, fsm, met, df_meteo)
 
 #*********************************************************
-CSV.write("C:/Users/elise/Documents/These/Workspace/Data/S2M/postes/output_1958-1959_S2M_galibier.csv", df_results)
+# CSV.write("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/output_1958-2024_S2M_grandesrousses.csv", df_results)
 #*********************************************************

@@ -1,11 +1,14 @@
 name = "IGEfsmtools"
 uuid = "e47889e2-3783-4ad8-ac93-24e8ff03a6af"
-authors = ["GiuliaMazzotti <giulia.mazzotti@slf.ch>"]
 version = "0.1.0"
+authors = ["GiuliaMazzotti <giulia.mazzotti@slf.ch>"]
 
 [deps]
+ArchGDAL = "c9ce4bd3-c3d5-55b8-8973-c0e20141b8c3"
+CommonDataModel = "1fbeeb36-5f17-413c-809b-666fb144f157"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 FSMOSHD = "5919be0d-1d81-4a5b-ac5f-ee56392bdbf1"
+GeoDataFrames = "62cb38b5-d8d2-4862-a48e-6a340996859f"
 Infiltrator = "5903a43b-9cc3-4c30-8d17-598619ec4e9b"
 MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
 NCDatasets = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
@@ -13,7 +16,10 @@ PrettyTables = "08abe8d2-0d0c-5749-adfa-8a2ac140af0d"
 ProgressMeter = "92933f4c-e287-5a05-a399-4b506db050ca"
 
 [compat]
+ArchGDAL = "0.10.10"
+CommonDataModel = "0.4.1"
 Dates = "1.11.0"
+GeoDataFrames = "0.4.1"
 Infiltrator = "1.9.3"
 MAT = "0.10.7"
 NCDatasets = "0.14.9"
