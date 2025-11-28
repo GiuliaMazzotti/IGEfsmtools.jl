@@ -92,20 +92,16 @@ function run_fsm(id_station, fsm, met, df_meteo)
         met.month .= month(t_i)
         met.day   .= day(t_i)
         met.hour  .= hour(t_i)
-
         met.Sdir  .= DIR_SW[i]
         met.Sdif  .= SCA_SW[i]
         met.Sdird .= DIR_SW[i]
         met.LW    .= LWdown[i]
-
         met.Sf    .= Snowf[i] * Int32(3600)
         met.Rf    .= Rainf[i] * Int32(3600)
-
         met.Ta    .= Tair[i]
         met.RH    .= Qair[i]
         met.Ua    .= Wind[i]
         met.Ps    .= PSurf[i]
-
         met.Sf24h .= sum(Snowf[max(1,i-23):i])
 
         # run model

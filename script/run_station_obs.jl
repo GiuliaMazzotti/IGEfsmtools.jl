@@ -124,7 +124,7 @@ function run_fsm(area, fsm, met, df_meteo)
         elseif fsm.Nsnow[1, 1] == 3
             Tsnow1[i], Tsnow2[i], Tsnow3[i] = fsm.Tsnow[1, 1, 1], fsm.Tsnow[2, 1, 1], fsm.Tsnow[3, 1, 1]
         end
-        alb[i] = fsm.asrf_out[1, 1] # albs
+        alb[i] = fsm.albs[1, 1] 
         Tsrf[i] = fsm.Tsrf[1, 1]
         Sice[i] = dropdims(sum(fsm.Sice, dims=1), dims=1)[1, 1]
         Sliq[i] = dropdims(sum(fsm.Sliq, dims=1), dims=1)[1, 1]

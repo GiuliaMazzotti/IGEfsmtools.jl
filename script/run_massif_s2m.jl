@@ -20,8 +20,16 @@ function setup_example(massif, alt, asp, slope)
     massif_shp = ArchGDAL.read("C:/Users/elise/Documents/These/Workspace/Data/S2M/shapefile/massifs_alpes_2154.shp")
     shapefile = ArchGDAL.getlayer(massif_shp, 0) |> DataFrame
     id_massif = shapefile[shapefile.nom .== massif, "massif_num"]
-    mask = (df_meteo["ZS"][:] .== alt) .& (df_meteo["massif_number"][:] .== id_massif) .& (df_meteo["slope"][:] .== slope) .& (df_meteo["aspect"][:] .== asp)
+    if slope == 0.0
+        mask = (df_meteo["ZS"][:] .== alt) .& (df_meteo["massif_number"][:] .== id_massif) .& (df_meteo["slope"][:] .== slope)
+    else
+        mask = (df_meteo["ZS"][:] .== alt) .& (df_meteo["massif_number"][:] .== id_massif) .& (df_meteo["slope"][:] .== slope) .& (df_meteo["aspect"][:] .== asp)
+    end    
     idx = findall(!=(0), mask)
+    if idx == Int64[]
+        error("Point does not exist - change topography attributes")
+    end
+
 
     # set landuse properties
     lus = Dict()
@@ -47,7 +55,7 @@ function setup_example(massif, alt, asp, slope)
     # define meteo data struct
     met = MET{Float32,Int32}()
     
-     return idx, fsm, met, df_meteo
+    return idx, fsm, met, df_meteo
 
 end
 
@@ -68,32 +76,44 @@ function run_fsm(idx, fsm, met, df_meteo)
     swemin = zeros(size(df_meteo["time"][:])[1])
     swemax = zeros(size(df_meteo["time"][:])[1])
 
+    # --- Preload everything from disk once ---
+    time      = df_meteo["time"][:]                 
+    DIR_SW    = df_meteo["DIR_SWdown"][idx, :]           
+    SCA_SW    = df_meteo["SCA_SWdown"][idx, :]
+    LWdown    = df_meteo["LWdown"][idx, :]
+    Snowf     = df_meteo["Snowf"][idx, :]
+    Rainf     = df_meteo["Rainf"][idx, :]
+    Tair      = df_meteo["Tair"][idx, :]
+    Qair      = df_meteo["Qair"][idx, :]
+    Wind      = df_meteo["Wind"][idx, :]
+    PSurf     = df_meteo["PSurf"][idx, :]
+
+    N = size(time, 1)   # or length(time)
+
     # time loop
-    for i in 1:size(df_meteo["time"][:])[1]
+    for i in 1:N
 
-        # assign input
-        met.year .= year.(df_meteo["time"][i])
-        met.month .= month.(df_meteo["time"][i])
-        met.day .= day.(df_meteo["time"][i])
-        met.hour .= hour.(df_meteo["time"][i])
-        met.Sdir .= df_meteo["DIR_SWdown"][idx, i]
-        met.Sdif .= df_meteo["SCA_SWdown"][idx, i]
-        met.Sdird .= df_meteo["DIR_SWdown"][idx, i]
-        met.LW .= df_meteo["LWdown"][idx, i]
-        met.Sf .= df_meteo["Snowf"][idx, i]*Int32(3600)
-        met.Rf .= df_meteo["Rainf"][idx, i]*Int32(3600) 
-        met.Ta .= df_meteo["Tair"][idx, i]
-        met.RH .= df_meteo["Qair"][idx, i] 
-        met.Ua .= df_meteo["Wind"][idx, i] 
-        met.Ps .= df_meteo["PSurf"][idx, i]
-        met.Sf24h .= sum(df_meteo["Snowf"][idx, max(1, i-23):i]) # sf24[i]
+        t_i = time[i]
 
-        # set time 
-        t = df_meteo["time"][i]
+        # assign met fields 
+        met.year  .= year(t_i)
+        met.month .= month(t_i)
+        met.day   .= day(t_i)
+        met.hour  .= hour(t_i)
+        met.Sdir  .= DIR_SW[i]
+        met.Sdif  .= SCA_SW[i]
+        met.Sdird .= DIR_SW[i]
+        met.LW    .= LWdown[i]
+        met.Sf    .= Snowf[i] * Int32(3600)
+        met.Rf    .= Rainf[i] * Int32(3600)
+        met.Ta    .= Tair[i]
+        met.RH    .= Qair[i]
+        met.Ua    .= Wind[i]
+        met.Ps    .= PSurf[i]
+        met.Sf24h .= sum(Snowf[max(1,i-23):i])
 
         # run model
-        println(i)
-        step!(fsm, met, t)
+        step!(fsm, met, t_i)
 
         # store outputs (unchanged from your code)
         hs[i] = dropdims(sum(fsm.Ds, dims=1), dims=1)[1]
@@ -123,9 +143,6 @@ function run_fsm(idx, fsm, met, df_meteo)
 
     alb_snow = copy(alb) 
     alb_snow[alb .< 0.6] .= NaN
-
-    # write results to dataframe
-    time = df_meteo["time"]
 
     df_results = DataFrame(time=time, hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb_snow, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
 

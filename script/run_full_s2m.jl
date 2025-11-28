@@ -8,98 +8,109 @@ using NCDatasets
 using Base: findall
 using ArchGDAL
 using GeoDataFrames
+using NetCDF
 # using IGEfsmtools
 
 #####################################################################################
 # df_meteo       => fast dim : Number_of_points (Column read time: 0.1630676 / Row read time: 288.5276814)
 # df_meteo_trans => fast dim : time
+# This script takes RAM but is suppose to be faster
 #####################################################################################
 
 # initialization function
     # sets parameters (topo, meteo), configuration, variables (format)
     # opens meteo file
-function setup_example()
+function setup_meteo()
 
-    # read meteo file
-    df_meteo = Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/FORCING_1958080106_2024080106.nc")
+     # read meteo file
     df_meteo_trans = Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/FORCING_1958080106_2024080106_trans.nc")
-    massif_shp = ArchGDAL.read("C:/Users/elise/Documents/These/Workspace/Data/S2M/shapefile/massifs_alpes_2154.shp")
-    shapefile = ArchGDAL.getlayer(massif_shp, 0) |> DataFrame
 
-    # --- Preload everything from disk once ---
-    time      = df_meteo_trans["time"][:]                  
-    DIR_SW    = df_meteo_trans["DIR_SWdown"][:]            
-    SCA_SW    = df_meteo_trans["SCA_SWdown"][:] 
-    LWdown    = df_meteo_trans["LWdown"][:] 
-    Snowf     = df_meteo_trans["Snowf"][:] 
-    Rainf     = df_meteo_trans["Rainf"][:] 
-    Tair      = df_meteo_trans["Tair"][:] 
-    Qair      = df_meteo_trans["Qair"][:] 
-    Wind      = df_meteo_trans["Wind"][:] 
-    PSurf     = df_meteo_trans["PSurf"][:] 
+    # define meteo data struct
+    met = MET{Float32,Int32}()
 
-    N = size(time, 1)   # or length(time)
+    return met, df_meteo_trans
+end
+
+#####################################################################################
+function setup_output(N, t, time, df_meteo_trans)
+
+    ds_out = NCDataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/output_1958-2024_S2M_full.nc", "c")
+
+    # --- define dimensions ---
+    defDim(ds_out, "Number_of_points", N)
+    defDim(ds_out, "time", t)
     
+    defVar(ds_out, "massif", Int32, ("Number_of_points",))[:] = df_meteo_trans["massif_number"]
+    defVar(ds_out, "ZS", Float32, ("Number_of_points",))[:] = df_meteo_trans["ZS"]
+    defVar(ds_out, "slope", Float32, ("Number_of_points",))[:] = df_meteo_trans["slope"]
+    defVar(ds_out, "aspect", Float32, ("Number_of_points",))[:] = df_meteo_trans["aspect"]
+    defVar(ds_out, "time", String, ("time",))[:] = string.(time)[:]
+
+    var_out = ["hs", "Tsnow1", "Tsnow2", "Tsnow3", "Ts", "albedo", "I", "W", "snow_depth_min", "snow_depth_max", "swemin", "swemax"]
+    for var in var_out
+        defVar(ds_out, var, Float64, ("time","Number_of_points"))
+    end
+
+    return ds_out
+end
+
+#####################################################################################
+function setup_fsm(zs)
+
     # define custom settings
     settings = Dict("tile" => "open", "params" => Dict("wind_scaling" => 0.7,
                                                         "dt" => 3600,
                                                         "zT" => 1.5,
                                                         "zU" => 5.0,
                                                         "zRH" => 1.5))
-    
-    # create fsm struct
-    fsm = setup(Float32, Int32, lus, 1, 1, settings)
-    
-    # define meteo data struct
-    met = MET{Float32,Int32}()
-    
-    return fsm, met, df_meteo, shapefile, 
 
-end
-
-#####################################################################################
-function mask(massif, alt, asp, slope, df_meteo, shapefile)
-
-    # set landuse properties
     lus = Dict()
     lus["skyvf"] = Dict("data" => [1.0;;])           
     lus["x"] = Dict("data" => [1.0;;])
     lus["y"] = Dict("data" => [1.0;;])
-    lus["dem"] = Dict("data" => [Float32(alt);;])
+    lus["dem"] = Dict("data" => [Float32(zs);;])
     lus["slopemu"] = Dict("data" => [1.0;;])
     lus["xi"] = Dict("data" => [1.0;;])
     lus["Ld"] = Dict("data" => [1.0;;])
     lus["prec_multi"] = Dict("data" => [1.0;;])
 
-    # set mask
-    id_massif = shapefile[shapefile.nom .== massif, "massif_num"]
-    if slope == 0.0
-    mask = (df_meteo["ZS"][:] .== alt) .& (df_meteo["massif_number"][:] .== id_massif) .& (df_meteo["slope"][:] .== slope)
-    else
-    mask = (df_meteo["ZS"][:] .== alt) .& (df_meteo["massif_number"][:] .== id_massif) .& (df_meteo["slope"][:] .== slope) .& (df_meteo["aspect"][:] .== asp)
-    end
-    idx = findall(!=(0), mask)
-    return idx
+    # create fsm struct
+    fsm = setup(Float32, Int32, lus, 1, 1, settings)
+    
+    return fsm 
+
+end
 
 #####################################################################################
-function run_fsm(idx, fsm, met, df_meteo)
+function run_fsm(n, t, fsm, met, df_meteo_trans, time)
 
     # allocate output variable-wise
-    hs = zeros(size(df_meteo["time"][:])[1])
-    Tsnow1 = fill(NaN, size(df_meteo["time"][:])[1])
-    Tsnow2 = fill(NaN, size(df_meteo["time"][:])[1])
-    Tsnow3 = fill(NaN, size(df_meteo["time"][:])[1])
-    Tsrf = zeros(size(df_meteo["time"][:])[1])
-    alb = zeros(size(df_meteo["time"][:])[1])
-    Sice = zeros(size(df_meteo["time"][:])[1])
-    Sliq = zeros(size(df_meteo["time"][:])[1])
-    snowdepthmin = zeros(size(df_meteo["time"][:])[1])
-    snowdepthmax = zeros(size(df_meteo["time"][:])[1])
-    swemin = zeros(size(df_meteo["time"][:])[1])
-    swemax = zeros(size(df_meteo["time"][:])[1])
-    
+    hs = zeros(t)
+    Tsnow1 = fill(NaN, t)
+    Tsnow2 = fill(NaN, t)
+    Tsnow3 = fill(NaN, t)
+    Tsrf = zeros(t)
+    alb = zeros(t)
+    Sice = zeros(t)
+    Sliq = zeros(t)
+    snowdepthmin = zeros(t)
+    snowdepthmax = zeros(t)
+    swemin = zeros(t)
+    swemax = zeros(t)
+
+        # --- Preload everything from disk once ---               
+    DIR_SW    = df_meteo_trans["DIR_SWdown"][n, :]           
+    SCA_SW    = df_meteo_trans["SCA_SWdown"][n, :]
+    LWdown    = df_meteo_trans["LWdown"][n, :]
+    Snowf     = df_meteo_trans["Snowf"][n, :]
+    Rainf     = df_meteo_trans["Rainf"][n, :]
+    Tair      = df_meteo_trans["Tair"][n, :]
+    Qair      = df_meteo_trans["Qair"][n, :]
+    Wind      = df_meteo_trans["Wind"][n, :]
+    PSurf     = df_meteo_trans["PSurf"][n, :]
+
     # time loop
-    for i in 1:N
+    for i in 1:t
 
         t_i = time[i]
 
@@ -108,25 +119,24 @@ function run_fsm(idx, fsm, met, df_meteo)
         met.month .= month(t_i)
         met.day   .= day(t_i)
         met.hour  .= hour(t_i)
-        met.Sdir  .= DIR_SW[idx, i]
-        met.Sdif  .= SCA_SW[idx, i]
-        met.Sdird .= DIR_SW[idx, i]
-        met.LW    .= LWdown[idx, i]
-        met.Sf    .= Snowf[idx, i] * Int32(3600)
-        met.Rf    .= Rainf[idx, i] * Int32(3600)
-        met.Ta    .= Tair[idx, i]
-        met.RH    .= Qair[idx, i]
-        met.Ua    .= Wind[idx, i] 
-        met.Ps    .= PSurf[idx, i]
-        met.Sf24h .= sum(Snowf[idx, max(1,i-23):i])
-
+        met.Sdir  .= DIR_SW[i]
+        met.Sdif  .= SCA_SW[i]
+        met.Sdird .= DIR_SW[i]
+        met.LW    .= LWdown[i]
+        met.Sf    .= Snowf[i] * Int32(3600)
+        met.Rf    .= Rainf[i] * Int32(3600)
+        met.Ta    .= Tair[i]
+        met.RH    .= Qair[i]
+        met.Ua    .= Wind[i]
+        met.Ps    .= PSurf[i]
+        met.Sf24h .= sum(Snowf[max(1,i-23):i])
+    
         # run model
-        println("step")
         step!(fsm, met, t_i)
+        println(i)
 
         # store outputs (unchanged from your code)
         hs[i] = dropdims(sum(fsm.Ds, dims=1), dims=1)[1]
-
         if fsm.Nsnow[1,1] == 1
             Tsnow1[i] = fsm.Tsnow[1,1,1]
         elseif fsm.Nsnow[1,1] == 2
@@ -137,41 +147,42 @@ function run_fsm(idx, fsm, met, df_meteo)
             Tsnow2[i] = fsm.Tsnow[2,1,1]
             Tsnow3[i] = fsm.Tsnow[3,1,1]
         end
-
         alb[i] = fsm.asrf_out[1,1]
         Tsrf[i] = fsm.Tsrf[1,1]
         Sice[i] = dropdims(sum(fsm.Sice,dims=1), dims=1)[1]
         Sliq[i] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[1]
-
         snowdepthmin[i] = fsm.snowdepthmin[1,1]
         snowdepthmax[i] = fsm.snowdepthmax[1,1]
         swemin[i]       = fsm.swemin[1,1]
         swemax[i]       = fsm.swemax[1,1]
-
     end
 
     alb_snow = copy(alb) 
     alb_snow[alb .< 0.6] .= NaN
 
-    df_results = DataFrame(time=time, hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb_snow, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
+    df_results = DataFrame(hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb_snow, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
 
     return df_results
 
 end
 #####################################################################################
-massif = "Grandes-Rousses" # "Grandes-Rousses", "Oisans", "Thabor"
-alt = 2100
-slope = 0.0 
-asp = -1
+met, df_meteo_trans = setup_meteo()
+N = df_meteo_trans.dim["Number_of_points"]
+t = df_meteo_trans.dim["time"]
+time = df_meteo_trans["time"]
 
-print("setup")
-fsm, met, df_meteo, shapefile = setup_example() 
+# Initialize output dataset
+ds_out = setup_output(N, t, time, df_meteo_trans)
 
+for n in 1:N
+    zs = df_meteo_trans["ZS"][n]
+    fsm = setup_fsm(zs)
 
-
-print("fsm")
-df_results = run_fsm(idx, fsm, met, df_meteo)
-
-#*********************************************************
-CSV.write("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/output_1958-2024_S2M_grandesrousses.csv", df_results)
-#*********************************************************
+    df_results = run_fsm(n, t, fsm, met, df_meteo_trans, time)
+    
+    for var in names(df_results)[:]
+        ds_out[var][:,n] = df_results[!,var]
+        # NetCDF.putvar!(ds_out, var, df_results[!, var], start=[1,n], count=[t,1])
+    end
+    println(n)
+end
