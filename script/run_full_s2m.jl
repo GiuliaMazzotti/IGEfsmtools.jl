@@ -14,7 +14,6 @@ using NetCDF
 #####################################################################################
 # df_meteo       => fast dim : Number_of_points (Column read time: 0.1630676 / Row read time: 288.5276814)
 # df_meteo_trans => fast dim : time
-# This script takes RAM but is suppose to be faster
 #####################################################################################
 
 # initialization function
@@ -34,7 +33,7 @@ end
 #####################################################################################
 function setup_output(N, t, time, df_meteo_trans)
 
-    ds_out = NCDataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/output_1958-2024_S2M_full.nc", "c")
+    ds_out = NCDataset("C:/Users/elise/Documents/These/Workspace/Data/outputs/output_1958-2024_S2M_full.nc", "c")
 
     # --- define dimensions ---
     defDim(ds_out, "Number_of_points", N)
@@ -147,7 +146,11 @@ function run_fsm(n, t, fsm, met, df_meteo_trans, time)
             Tsnow2[i] = fsm.Tsnow[2,1,1]
             Tsnow3[i] = fsm.Tsnow[3,1,1]
         end
-        alb[i] = fsm.asrf_out[1,1]
+        if fsm.asrf_out[1,1] < 0.6
+            alb[i] = NaN
+        else
+            alb[i] = fsm.asrf_out[1,1]
+        end
         Tsrf[i] = fsm.Tsrf[1,1]
         Sice[i] = dropdims(sum(fsm.Sice,dims=1), dims=1)[1]
         Sliq[i] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[1]
@@ -157,10 +160,7 @@ function run_fsm(n, t, fsm, met, df_meteo_trans, time)
         swemax[i]       = fsm.swemax[1,1]
     end
 
-    alb_snow = copy(alb) 
-    alb_snow[alb .< 0.6] .= NaN
-
-    df_results = DataFrame(hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb_snow, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
+    df_results = DataFrame(hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
 
     return df_results
 
@@ -177,10 +177,9 @@ ds_out = setup_output(N, t, time, df_meteo_trans)
 for n in 1:N
     zs = df_meteo_trans["ZS"][n]
     fsm = setup_fsm(zs)
-
     df_results = run_fsm(n, t, fsm, met, df_meteo_trans, time)
     
-    for var in names(df_results)[:]
+    for var in names(df_results)[:] #[2:end]
         ds_out[var][:,n] = df_results[!,var]
         # NetCDF.putvar!(ds_out, var, df_results[!, var], start=[1,n], count=[t,1])
     end

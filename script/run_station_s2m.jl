@@ -15,7 +15,7 @@ using Base: findall
 function setup_example(station)
 
     # read meteo file
-    df_meteo = Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/postes/meteo/FORCING_alpes_2018080106_2024080106.nc")
+    df_meteo = Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/postes/meteo/FORCING_alpes_1958080106_2024080106.nc")
     shapefile = CSV.read("C:/Users/elise/Documents/These/Workspace/Data/S2M/shapefile/stations_reanalysis_S2M.csv", DataFrame)
     shapefile.Name = strip.(string.(shapefile.Name))
     id_station = Int32(findfirst(shapefile.Name .== station))
@@ -125,7 +125,7 @@ function run_fsm(id_station, fsm, met, df_meteo)
         Tsrf[i] = fsm.Tsrf[1,1]
         Sice[i] = dropdims(sum(fsm.Sice,dims=1), dims=1)[1]
         Sliq[i] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[1]
-
+        
         snowdepthmin[i] = fsm.snowdepthmin[1,1]
         snowdepthmax[i] = fsm.snowdepthmax[1,1]
         swemin[i]       = fsm.swemin[1,1]
@@ -133,19 +133,19 @@ function run_fsm(id_station, fsm, met, df_meteo)
 
     end
 
-    alb_snow = copy(alb) 
-    alb_snow[alb .< 0.6] .= NaN
+    # alb_snow = copy(alb) 
+    # alb_snow[alb .< 0.6] .= NaN
 
     # write results to dataframe
     time = df_meteo["time"]
 
-    df_results = DataFrame(time=time, hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb_snow, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
+    df_results = DataFrame(time=time, hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
 
     return df_results
 
 end
 #####################################################################################
-station = "VILLAR D'ARENE" # "GALIBIER-NIVOSE", "VILLAR D'ARENE"
+station = "GALIBIER-NIVOSE" # "GALIBIER-NIVOSE", "VILLAR D'ARENE"
 
 print("setup")
 id_station, fsm, met, df_meteo = setup_example(station) 
@@ -154,5 +154,12 @@ print("fsm")
 df_results = run_fsm(id_station, fsm, met, df_meteo)
 
 #*********************************************************
-CSV.write("C:/Users/elise/Documents/These/Workspace/Data/S2M/postes/output_2018-2024_S2M_vallardarene_test.csv", df_results)
+pass = "C:/Users/elise/Documents/These/Workspace/Data/outputs/output_1958-2024_S2M_galibier_testswe.csv"
+CSV.write(pass, df_results)
 #*********************************************************
+open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
+    println(f, "**$(pass)**")
+    println(f, "- input = C:/Users/elise/Documents/These/Workspace/Data/S2M/postes/meteo/FORCING_alpes_1958080106_2024080106.nc")
+    println(f, "- SNFRAC = 0")
+    println(f, "")
+end

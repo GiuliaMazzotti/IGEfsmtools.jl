@@ -43,7 +43,7 @@ function setup_example(area)
     met = MET{Float32,Int32}()
     
     # read meteo file
-    df_meteo = Dict("lautaret" => CSV.read("C:/Users/elise/Documents/These/Workspace/Data/lautaret/2018-2024_Lautaret_halfhour_input_vermaut_corr.csv", DataFrame),
+    df_meteo = Dict("lautaret" => CSV.read("C:/Users/elise/Documents/These/Workspace/Data/lautaret/2018-2024_Lautaret_halfhour_input_vermaut_corr2.csv", DataFrame),
                     "slf" =>  CSV.read("C:/Users/elise/Documents/These/Workspace/GitHub/FSMOSHD.jl/data/input_SLF_5WJ.txt", DataFrame))[area]
     return fsm, met, df_meteo
 
@@ -160,5 +160,11 @@ print("fsm")
 df_results = run_fsm(area, fsm, met, df_meteo)
 
 #*********************************************************
-CSV.write("C:/Users/elise/Documents/These/Workspace/Data/lautaret/output_2018-2024_Lautaret_halfhour.csv", df_results)
+CSV.write("C:/Users/elise/Documents/These/Workspace/Data/outputs/output_2018-2024_Lautaret_halfhour_testswe2.csv", df_results)
 #*********************************************************
+open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
+    println(f, "**$(pass)**")
+    println(f, "- input = C:/Users/elise/Documents/These/Workspace/Data/lautaret/2018-2024_Lautaret_halfhour_input_vermaut_corr2.csv")
+    println(f, "- SNFRAC = 0")
+    println(f, "")
+end

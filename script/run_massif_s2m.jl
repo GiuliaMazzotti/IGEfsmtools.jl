@@ -141,8 +141,8 @@ function run_fsm(idx, fsm, met, df_meteo)
 
     end
 
-    alb_snow = copy(alb) 
-    alb_snow[alb .< 0.6] .= NaN
+    # alb_snow = copy(alb) 
+    # alb_snow[alb .< 0.6] .= NaN
 
     df_results = DataFrame(time=time, hs=hs, Tsnow1=Tsnow1, Tsnow2=Tsnow2, Tsnow3=Tsnow3, Ts=Tsrf, albedo=alb_snow, I=Sice, W=Sliq, snow_depth_min=snowdepthmin, snow_depth_max=snowdepthmax, swemin=swemin, swemax=swemax)
 
@@ -150,10 +150,12 @@ function run_fsm(idx, fsm, met, df_meteo)
 
 end
 #####################################################################################
-massif = "Grandes-Rousses" # "Grandes-Rousses", "Oisans", "Thabor"
-alt = 2100
+# GALIBIER NIVOSE => Lat:45.056833, Lon:6.377167, Alt:2559, Slope:0, Asp:160.0
+# VILLAR D'ARENE  => Lat:45.030833, Lon:6.361667, Alt:1665, Slope:0, Asp:0.0
+massif = "Thabor" # "Grandes-Rousses", "Oisans", "Thabor"
+alt = 1800
 slope = 0
-asp = -1
+asp = 0
 
 print("setup")
 idx, fsm, met, df_meteo = setup_example(massif, alt, asp, slope) 
@@ -162,5 +164,12 @@ print("fsm")
 df_results = run_fsm(idx, fsm, met, df_meteo)
 
 #*********************************************************
-CSV.write("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/output_1958-2024_S2M_grandesrousses_2100_flat.csv", df_results)
+pass = "C:/Users/elise/Documents/These/Workspace/Data/outputs/output_1958-2024_S2M_$(massif)_$(string(alt))_$(string(slope))_$(string(asp)).csv"
+CSV.write(pass, df_results)
 #*********************************************************
+open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
+    println(f, "**$(pass)**")
+    println(f, "- input = C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/FORCING_1958080106_2024080106_trans.nc")
+    println(f, "")
+end
+

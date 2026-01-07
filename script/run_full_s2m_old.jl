@@ -176,7 +176,7 @@ fsm, met, df_meteo_trans, shapefile, time, DIR_SW, SCA_SW, LWdown, Snowf, Rainf,
 print("setup")
 
 # Initialize output dataset
-ds_out = NCDataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/output_1958-2024_S2M_full.nc", "c")
+ds_out = NCDataset("C:/Users/elise/Documents/These/Workspace/Data/outputs/output_1958-2024_S2M_full.nc", "c")
 nb = df_meteo_trans.dim["Number_of_points"]
 time_str = string.(time)
 

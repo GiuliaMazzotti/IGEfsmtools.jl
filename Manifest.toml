@@ -2,7 +2,7 @@
 
 julia_version = "1.12.0"
 manifest_format = "2.0"
-project_hash = "28da69c529938aa60e38cc0e4967d6082f8390f6"
+project_hash = "45659a317741675d4ab919abfdc77685ed400d17"
 
 [[deps.AbstractTrees]]
 git-tree-sha1 = "2d9c9a55f9c93e8887ad391fbae72f8ef55e1177"
@@ -188,9 +188,9 @@ version = "1.8.1"
 
 [[deps.DataStructures]]
 deps = ["OrderedCollections"]
-git-tree-sha1 = "6c72198e6a101cccdd4c9731d3985e904ba26037"
+git-tree-sha1 = "e357641bb3e0638d353c4b29ea0e40ea644066a6"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.19.1"
+version = "0.19.3"
 
 [[deps.DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -411,7 +411,7 @@ uuid = "a51ab1cf-af8e-5615-a023-bc2c838bba6b"
 version = "76.2.0+0"
 
 [[deps.IGEfsmtools]]
-deps = ["ArchGDAL", "Dates", "FSMOSHD", "GeoDataFrames", "Infiltrator", "MAT", "NCDatasets", "PrettyTables", "ProgressMeter"]
+deps = ["ArchGDAL", "CSV", "CommonDataModel", "DataFrames", "Dates", "FSMOSHD", "GeoDataFrames", "Infiltrator", "MAT", "NCDatasets", "NetCDF", "PrettyTables", "ProgressMeter"]
 path = "."
 uuid = "e47889e2-3783-4ad8-ac93-24e8ff03a6af"
 version = "0.1.0"
@@ -678,6 +678,12 @@ deps = ["CFTime", "CommonDataModel", "DataStructures", "Dates", "DiskArrays", "N
 git-tree-sha1 = "5d5de6613f231d17cecb13a7dcdbb74740134ba8"
 uuid = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
 version = "0.14.9"
+
+[[deps.NetCDF]]
+deps = ["DiskArrays", "NetCDF_jll"]
+git-tree-sha1 = "853b381b2164bbe980b94e8411324a6b3b811dd6"
+uuid = "30363a11-5582-574a-97bb-aa9a979735b9"
+version = "0.12.2"
 
 [[deps.NetCDF_jll]]
 deps = ["Artifacts", "Blosc_jll", "Bzip2_jll", "HDF5_jll", "JLLWrappers", "LazyArtifacts", "LibCURL_jll", "Libdl", "MPICH_jll", "MPIPreferences", "MPItrampoline_jll", "MicrosoftMPI_jll", "OpenMPI_jll", "TOML", "XML2_jll", "Zlib_jll", "Zstd_jll", "libaec_jll", "libzip_jll"]
