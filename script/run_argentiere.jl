@@ -29,8 +29,8 @@ function setup_example()
     # set landuse properties
     lus = Dict()
     lus["skyvf"] = Dict("data" => [fill(1.0, Nx);;])           
-    lus["x"] = Dict("data" => [df_meteo["y"];;])
-    lus["y"] = Dict("data" => [df_meteo["x"];;])
+    lus["x"] = Dict("data" => [df_meteo["LON"];;])
+    lus["y"] = Dict("data" => [df_meteo["LAT"];;])
     lus["dem"] = Dict("data" => [df_meteo["ZS"];;])
     lus["slopemu"] = Dict("data" => [fill(1.0, Nx);;])
     lus["xi"] = Dict("data" => [fill(1.0, Nx);;])
@@ -56,7 +56,7 @@ end
 #####################################################################################
 function run_fsm(fsm, met, df_meteo)
 
-    dims = (df_meteo.dim["Number_of_points"], df_meteo.dim["time"]) # (df_meteo.dim["time"],df_meteo.dim["Number_of_points"])
+    dims = (df_meteo.dim["x"], df_meteo.dim["y"], df_meteo.dim["time"]) # (df_meteo.dim["time"],df_meteo.dim["Number_of_points"])
 
     # allocate output variable-wise
     hs = zeros(dims)
