@@ -254,7 +254,7 @@ version = "0.1.6"
 
 [[deps.FSMOSHD]]
 deps = ["CSV", "DataFrames", "Dates", "DelimitedFiles", "Infiltrator", "Libdl", "Parameters", "Test"]
-path = "../FSMOSHD.jl"
+path = "../FSMOSHD/src/FSMOSHD.jl"
 uuid = "5919be0d-1d81-4a5b-ac5f-ee56392bdbf1"
 version = "0.1.0"
 

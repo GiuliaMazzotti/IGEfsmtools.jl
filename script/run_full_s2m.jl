@@ -22,7 +22,7 @@ using NetCDF
 function setup_meteo()
 
      # read meteo file
-    df_meteo_trans = Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/meteo/FORCING_1958080106_2024080106_trans.nc")
+    df_meteo_trans = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/alp_allslopes/meteo/FORCING_2023080106_2024080106.nc")
 
     # define meteo data struct
     met = MET{Float32,Int32}()
@@ -33,7 +33,7 @@ end
 #####################################################################################
 function setup_output(N, t, time, df_meteo_trans)
 
-    ds_out = NCDataset("C:/Users/elise/Documents/These/Workspace/Data/outputs/output_1958-2024_S2M_full.nc", "c")
+    ds_out = NCDataset("C:/Users/navarrel/Documents/Workspace/Data/outputs/output_2023-2024_S2M_full.nc", "c")
 
     # --- define dimensions ---
     defDim(ds_out, "Number_of_points", N)

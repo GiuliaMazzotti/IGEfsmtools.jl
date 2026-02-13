@@ -21,10 +21,10 @@ using DataStructures
 function setup_example()
 
     # read meteo file
-    df_meteo = Dataset("C:/Users/elise/Documents/These/Workspace/Data/argentiere/FORCING_oshd_GARG_2021-22.nc")
+    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/interpol/FORCING_s2m_gblanc_100m/meteo/FORCING_2018080106_2019080106.nc")
 
-    Nx = 40
-    Ny = 36
+    Nx = df_meteo.dim["x"]
+    Ny = df_meteo.dim["y"]
 
     # set landuse properties
     lus = Dict()
@@ -98,33 +98,34 @@ function run_fsm(fsm, met, df_meteo)
         met.month .= month(t_i)
         met.day   .= day(t_i)
         met.hour  .= hour(t_i)
-        met.Sdir  .= DIR_SW[:,i]
-        met.Sdif  .= SCA_SW[:,i]
-        met.Sdird .= DIR_SW[:,i]
-        met.LW    .= LWdown[:,i]
-        met.Sf    .= Snowf[:,i] .* Int32(3600)
-        met.Rf    .= Rainf[:,i] .* Int32(3600)
-        met.Ta    .= Tair[:,i]
-        met.RH    .= Qair[:,i]
-        met.Ua    .= Wind[:,i]
-        met.Ps    .= PSurf[:,i]
-        met.Sf24h .= dropdims(sum(Snowf[:,max(1,i-23):i], dims=2), dims=2)
+        met.Sdir  .= DIR_SW[:,:,i]
+        met.Sdif  .= SCA_SW[:,:,i]
+        met.Sdird .= DIR_SW[:,:,i]
+        met.LW    .= LWdown[:,:,i]
+        met.Sf    .= Snowf[:,:,i] .* Int32(3600)
+        met.Rf    .= Rainf[:,:,i] .* Int32(3600)
+        met.Ta    .= Tair[:,:,i]
+        met.RH    .= Qair[:,:,i]
+        met.Ua    .= Wind[:,:,i]
+        met.Ps    .= PSurf[:,:,i]
+        # PROBLEME DIMENSION A PARTIR i=2
+        met.Sf24h .= dropdims(sum(Snowf[:,:,max(1,i-23):i], dims=3), dims=3)
 
         # run model
         step!(fsm, met, t_i)
-
-        # store outputs (unchanged from your code)
-        hs[i,:] = dropdims(sum(fsm.Ds, dims=1), dims=1)[:]
-
-        Tsnow1[i,:] = fsm.Tsnow[1,:,:]
-        Tsnow2[i,:] = fsm.Tsnow[2,:,:]
-        Tsnow3[i,:] = fsm.Tsnow[3,:,:]
-
-        alb[i,:] = fsm.asrf_out[:]
-        Tsrf[i,:] = fsm.Tsrf[:]
-        Sice[i,:] = dropdims(sum(fsm.Sice,dims=1), dims=1)[:]
-        Sliq[i,:] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[:]
         
+        # store outputs (unchanged from your code)
+        hs[:,:,i] = dropdims(sum(fsm.Ds, dims=1), dims=1)[:]
+        
+        Tsnow1[:,:,i] = fsm.Tsnow[1,:,:]
+        Tsnow2[:,:,i] = fsm.Tsnow[2,:,:]
+        Tsnow3[:,:,i] = fsm.Tsnow[3,:,:]
+
+        alb[:,:,i] = fsm.asrf_out[:]
+        Tsrf[:,:,i] = fsm.Tsrf[:]
+        Sice[:,:,i] = dropdims(sum(fsm.Sice,dims=1), dims=1)[:]
+        Sliq[:,:,i] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[:]
+    
         # snowdepthmin[i,:] = fsm.snowdepthmin[:]
         # snowdepthmax[i,:] = fsm.snowdepthmax[:]
         # swemin[i,:]       = fsm.swemin[:]
@@ -151,7 +152,7 @@ print("fsm")
 time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W = run_fsm(fsm, met, df_meteo)
 
 #*********************************************************
-pass = "C:/Users/elise/Documents/These/Workspace/Data/outputs/output_2021-2022_garg.nc"
+pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_test.nc"
 
 #*********************************************************
 # open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
@@ -165,17 +166,19 @@ ds_results = NCDataset(pass,"c")
 
 # Define the dimension "lon" and "lat" with the size 100 and 110 resp.
 defDim(ds_results,"time",size(time)[1])
-defDim(ds_results,"Nb_stations",size(hs)[2])
+defDim(ds_results,"x",size(df_meteo["x"])[1])
+defDim(ds_results,"y",size(df_meteo["y"])[1])
 
 # Define the variables temperature
 defVar(ds_results,"time",time,("time",))
-defVar(ds_results,"station",shapefile.Name,("Nb_stations",))
-defVar(ds_results,"hs",hs,("time","Nb_stations"), attrib = OrderedDict("units" => "m"))
-defVar(ds_results,"Tsnow1",Tsnow1,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"Tsnow2",Tsnow2,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"Tsnow3",Tsnow3,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"Ts",Ts,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"albedo",albedo,("time","Nb_stations"))
-defVar(ds_results,"I",I,("time","Nb_stations"), attrib = OrderedDict("units" => "kg/m2"))
-defVar(ds_results,"W",W,("time","Nb_stations"), attrib = OrderedDict("units" => "kg/m2"))
+defVar(ds_results,"x",df_meteo["x"],("x",))
+defVar(ds_results,"y",df_meteo["y"],("y",))
+defVar(ds_results,"hs",hs,("x","y","time"), attrib = OrderedDict("units" => "m"))
+defVar(ds_results,"Tsnow1",Tsnow1,("x","y","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsnow2",Tsnow2,("x","y","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsnow3",Tsnow3,("x","y","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Ts",Ts,("x","y","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"albedo",albedo,("x","y","time"))
+defVar(ds_results,"I",I,("x","y","time"), attrib = OrderedDict("units" => "kg/m2"))
+defVar(ds_results,"W",W,("x","y","time"), attrib = OrderedDict("units" => "kg/m2"))
 
