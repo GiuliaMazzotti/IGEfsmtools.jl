@@ -17,7 +17,7 @@ function setup_example(area)
     lus["skyvf"] = Dict("data" => [1.0;;])           
     lus["x"] = Dict("data" => [1.0;;])
     lus["y"] = Dict("data" => [1.0;;])
-    lus["dem"] = Dict("lautaret" => Dict("data" => [2057.0;;]),
+    lus["elevation"] = Dict("lautaret" => Dict("data" => [2057.0;;]),
                       "slf" => Dict("data" => [2540.0;;]))[area] 
     lus["slopemu"] = Dict("data" => [1.0;;])
     lus["xi"] = Dict("data" => [1.0;;])
