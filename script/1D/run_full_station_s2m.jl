@@ -21,8 +21,8 @@ using DataStructures
 function setup_example()
 
     # read meteo file
-    df_meteo = Dataset("C:/Users/elise/Documents/These/Workspace/Data/S2M/postes/meteo/FORCING_alpes_2018080106_2024080106_trans.nc")
-    station_shapefile = ArchGDAL.read("C:/Users/elise/Documents/These/Workspace/Data/S2M/shapefile/stations_reanalysis_S2M_alpes.shp")
+    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/postes/meteo/FORCING_alpes_2018080106_2024080106.nc")
+    station_shapefile = ArchGDAL.read("C:/Users/navarrel/Documents/Workspace/MNT_alpes/shapefile/1D/s2m/stations_reanalysis_S2M_alpes.shp")
     shapefile = ArchGDAL.getlayer(station_shapefile, 0) |> DataFrame  
 
     Nx = 434
@@ -110,27 +110,27 @@ function run_fsm(fsm, met, df_meteo)
         met.RH    .= Qair[:,i]
         met.Ua    .= Wind[:,i]
         met.Ps    .= PSurf[:,i]
-        met.Sf24h .= dropdims(sum(Snowf[:,max(1,i-23):i], dims=2), dims=2)
-
+        met.Sf24h .= dropdims(sum(Snowf[:, max(1,i-23):i], dims=2), dims=2)
+  
         # run model
         step!(fsm, met, t_i)
 
         # store outputs (unchanged from your code)
-        hs[i,:] = dropdims(sum(fsm.Ds, dims=1), dims=1)[:]
+        hs[:,i] = dropdims(sum(fsm.Ds, dims=1), dims=1)[:]
 
-        Tsnow1[i,:] = fsm.Tsnow[1,:,:]
-        Tsnow2[i,:] = fsm.Tsnow[2,:,:]
-        Tsnow3[i,:] = fsm.Tsnow[3,:,:]
+        Tsnow1[:,i] = fsm.Tsnow[1,:,:]
+        Tsnow2[:,i] = fsm.Tsnow[2,:,:]
+        Tsnow3[:,i] = fsm.Tsnow[3,:,:]
 
-        alb[i,:] = fsm.asrf_out[:]
-        Tsrf[i,:] = fsm.Tsrf[:]
-        Sice[i,:] = dropdims(sum(fsm.Sice,dims=1), dims=1)[:]
-        Sliq[i,:] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[:]
-        
-        # snowdepthmin[i,:] = fsm.snowdepthmin[:]
-        # snowdepthmax[i,:] = fsm.snowdepthmax[:]
-        # swemin[i,:]       = fsm.swemin[:]
-        # swemax[i,:]       = fsm.swemax[:]
+        alb[:,i] = fsm.asrf_out[:]
+        Tsrf[:,i] = fsm.Tsrf[:]
+        Sice[:,i] = dropdims(sum(fsm.Sice,dims=1), dims=1)[:]
+        Sliq[:,i] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[:]
+
+        # snowdepthmin[:,i] = fsm.snowdepthmin[:]
+        # snowdepthmax[:,i] = fsm.snowdepthmax[:]
+        # swemin[:,i]       = fsm.swemin[:]
+        # swemax[:,i]       = fsm.swemax[:]
 
     end
 
@@ -139,7 +139,7 @@ function run_fsm(fsm, met, df_meteo)
 
     # write results to dataframe
     time = df_meteo["time"]
-
+    
     return time, hs, Tsnow1, Tsnow2, Tsnow3, Tsrf, alb, Sice, Sliq 
 
 end
@@ -153,7 +153,7 @@ print("fsm")
 time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W = run_fsm(fsm, met, df_meteo)
 
 #*********************************************************
-pass = "C:/Users/elise/Documents/These/Workspace/Data/outputs/output_2018-2024_S2M_stations2.nc"
+pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_2018-2024_S2M_stations_test.nc" 
 
 #*********************************************************
 # open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
@@ -167,17 +167,18 @@ ds_results = NCDataset(pass,"c")
 
 # Define the dimension "lon" and "lat" with the size 100 and 110 resp.
 defDim(ds_results,"time",size(time)[1])
-defDim(ds_results,"Nb_stations",size(hs)[2])
+defDim(ds_results,"Nb_stations",size(hs)[1])
 
 # Define the variables temperature
 defVar(ds_results,"time",time,("time",))
+defVar(ds_results,"id", shapefile.ID,("Nb_stations",))
 defVar(ds_results,"station",shapefile.Name,("Nb_stations",))
-defVar(ds_results,"hs",hs,("time","Nb_stations"), attrib = OrderedDict("units" => "m"))
-defVar(ds_results,"Tsnow1",Tsnow1,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"Tsnow2",Tsnow2,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"Tsnow3",Tsnow3,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"Ts",Ts,("time","Nb_stations"), attrib = OrderedDict("units" => "K"))
-defVar(ds_results,"albedo",albedo,("time","Nb_stations"))
-defVar(ds_results,"I",I,("time","Nb_stations"), attrib = OrderedDict("units" => "kg/m2"))
-defVar(ds_results,"W",W,("time","Nb_stations"), attrib = OrderedDict("units" => "kg/m2"))
+defVar(ds_results,"hs",hs,("Nb_stations","time"), attrib = OrderedDict("units" => "m"))
+defVar(ds_results,"Tsnow1",Tsnow1,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsnow2",Tsnow2,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsnow3",Tsnow3,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Ts",Ts,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"albedo",albedo,("Nb_stations","time"))
+defVar(ds_results,"I",I,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2"))
+defVar(ds_results,"W",W,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2"))
 

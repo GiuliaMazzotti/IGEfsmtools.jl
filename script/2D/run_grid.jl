@@ -152,7 +152,7 @@ print("fsm")
 time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W = run_fsm(fsm, met, df_meteo)
 
 #*********************************************************
-pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_test.nc"
+pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_gblanc_100m_2018-2019.nc"
 
 #*********************************************************
 # open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
