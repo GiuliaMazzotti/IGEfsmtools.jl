@@ -3,7 +3,7 @@ cd(@__DIR__)
 using Dates
 using CSV
 using DataFrames
-using FSMOSHD
+using FlexibleSnowModelOSHD
 # using IGEfsmtools
 
 
@@ -44,7 +44,7 @@ function setup_example(area)
     
     # read meteo file
     df_meteo = Dict("lautaret" => CSV.read("C:/Users/elise/Documents/These/Workspace/Data/lautaret/2018-2024_Lautaret_halfhour_input_vermaut_corr2.csv", DataFrame),
-                    "slf" =>  CSV.read("C:/Users/elise/Documents/These/Workspace/GitHub/FSMOSHD.jl/data/input_SLF_5WJ.txt", DataFrame))[area]
+                    "slf" =>  CSV.read("C:/Users/elise/Documents/These/Workspace/GitHub/FlexibleSnowModelOSHD.jl/data/input_SLF_5WJ.txt", DataFrame))[area]
     return fsm, met, df_meteo
 
 end

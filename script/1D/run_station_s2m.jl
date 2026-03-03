@@ -3,7 +3,7 @@ cd(@__DIR__)
 using Dates
 using CSV
 using DataFrames
-using FSMOSHD
+using FlexibleSnowModelOSHD
 using NCDatasets
 using Base: findall
 # using IGEfsmtools

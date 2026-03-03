@@ -9,6 +9,7 @@ using Base: findall
 using ArchGDAL
 using GeoDataFrames
 using DataStructures
+using Statistics
 # using IGEfsmtools
 
 # /!\ Retirer wind_scaling
@@ -21,7 +22,7 @@ using DataStructures
 function setup_example()
 
     # read meteo file
-    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/interpol/FORCING_s2m_gblanc_100m/meteo/FORCING_2018080106_2019080106.nc")
+    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/interpol/FORCING_s2m_argentiere_100m/meteo/FORCING_2023080106_2024080106_glacier.nc")
 
     Nx = df_meteo.dim["x"]
     Ny = df_meteo.dim["y"]
@@ -36,6 +37,7 @@ function setup_example()
     lus["xi"] = Dict("data" => [fill(1.0, Nx);;])
     lus["Ld"] = Dict("data" => [fill(1.0, Nx);;])
     lus["prec_multi"] = Dict("data" => [fill(1.0, Nx);;])
+    lus["landcover"] = Dict("data" => [df_meteo["landcover"];;])  
     
     # define custom settings
     settings = Dict("tile" => "open", "Nx" => Nx, "Ny" => Ny, "params" => Dict("wind_scaling" => 0.7, "dt" => 3600,
@@ -54,9 +56,10 @@ function setup_example()
 end
 
 #####################################################################################
-function run_fsm(fsm, met, df_meteo)
+function run_fsm(fsm, met, df_meteo, time_res)
 
-    dims = (df_meteo.dim["x"], df_meteo.dim["y"], df_meteo.dim["time"]) # (df_meteo.dim["time"],df_meteo.dim["Number_of_points"])
+    dims = (df_meteo.dim["x"], df_meteo.dim["y"], trunc(Int, df_meteo.dim["time"]./time_res)) # (df_meteo.dim["time"],df_meteo.dim["Number_of_points"])
+    dims_day =  (df_meteo.dim["x"], df_meteo.dim["y"], time_res)
 
     # allocate output variable-wise
     hs = zeros(dims)
@@ -67,11 +70,23 @@ function run_fsm(fsm, met, df_meteo)
     alb = zeros(dims)
     Sice = zeros(dims)
     Sliq = zeros(dims)
+    Icemlt = zeros(dims)
     # snowdepthmin = zeros(dims)
     # snowdepthmax = zeros(dims)
     # swemin = zeros(dims)
     # swemax = zeros(dims)
-    
+
+    # allocate output temporary variable-daily
+    hs_day = zeros(dims_day)
+    Tsnow1_day = fill(NaN, dims_day)
+    Tsnow2_day = fill(NaN, dims_day)
+    Tsnow3_day = fill(NaN, dims_day)
+    Tsrf_day = zeros(dims_day)
+    alb_day = zeros(dims_day)
+    Sice_day = zeros(dims_day)
+    Sliq_day = zeros(dims_day)
+    Icemlt_day = zeros(dims_day)
+
     # sf24 = [sum(df_meteo["Snowf"][id_station, max(1, i-23):i]) for i in 1:length(df_meteo["Snowf"][id_station,:])]
 
     # --- Preload everything from disk once ---
@@ -87,6 +102,8 @@ function run_fsm(fsm, met, df_meteo)
     PSurf     = df_meteo["PSurf"]
 
     N = size(time, 1)   # or length(time)
+    daily = 1
+    d = 1
 
     # time loop
     for i in 1:N
@@ -108,28 +125,49 @@ function run_fsm(fsm, met, df_meteo)
         met.RH    .= Qair[:,:,i]
         met.Ua    .= Wind[:,:,i]
         met.Ps    .= PSurf[:,:,i]
-        # PROBLEME DIMENSION A PARTIR i=2
         met.Sf24h .= dropdims(sum(Snowf[:,:,max(1,i-23):i], dims=3), dims=3)
-
+        
         # run model
         step!(fsm, met, t_i)
         
-        # store outputs (unchanged from your code)
-        hs[:,:,i] = dropdims(sum(fsm.Ds, dims=1), dims=1)[:]
-        
-        Tsnow1[:,:,i] = fsm.Tsnow[1,:,:]
-        Tsnow2[:,:,i] = fsm.Tsnow[2,:,:]
-        Tsnow3[:,:,i] = fsm.Tsnow[3,:,:]
+        if daily <= 24
+            # store temporary daily outputs 
+            hs_day[:,:,daily] = dropdims(sum(fsm.Ds, dims=1), dims=1)[:]
+            
+            Tsnow1_day[:,:,daily] = fsm.Tsnow[1,:,:]
+            Tsnow2_day[:,:,daily] = fsm.Tsnow[2,:,:]
+            Tsnow3_day[:,:,daily] = fsm.Tsnow[3,:,:]
 
-        alb[:,:,i] = fsm.asrf_out[:]
-        Tsrf[:,:,i] = fsm.Tsrf[:]
-        Sice[:,:,i] = dropdims(sum(fsm.Sice,dims=1), dims=1)[:]
-        Sliq[:,:,i] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[:]
-    
-        # snowdepthmin[i,:] = fsm.snowdepthmin[:]
-        # snowdepthmax[i,:] = fsm.snowdepthmax[:]
-        # swemin[i,:]       = fsm.swemin[:]
-        # swemax[i,:]       = fsm.swemax[:]
+            alb_day[:,:,daily] = fsm.asrf_out[:]
+            Tsrf_day[:,:,daily] = fsm.Tsrf[:]
+            Sice_day[:,:,daily] = dropdims(sum(fsm.Sice,dims=1), dims=1)[:]
+            Sliq_day[:,:,daily] = dropdims(sum(fsm.Sliq,dims=1), dims=1)[:]
+            Icemlt_day[:,:,daily] = fsm.Icemlt[:]
+
+            daily += 1
+            
+        else 
+            # store outputs (unchanged from your code)
+            hs[:,:,d] = dropdims(mean(hs_day, dims=3), dims=3) # Really take mean ? (hs at the end of the day ?)
+            
+            Tsnow1[:,:,d] = dropdims(mean(Tsnow1_day, dims=3), dims=3)
+            Tsnow2[:,:,d] = dropdims(mean(Tsnow2_day, dims=3), dims=3)
+            Tsnow3[:,:,d] = dropdims(mean(Tsnow3_day, dims=3), dims=3)
+
+            alb[:,:,d] = dropdims(mean(alb_day, dims=3), dims=3)
+            Tsrf[:,:,d] = dropdims(mean(Tsrf_day, dims=3), dims=3)
+            Sice[:,:,d] = dropdims(mean(Sice_day, dims=3), dims=3)
+            Sliq[:,:,d] = dropdims(mean(Sliq_day, dims=3), dims=3)
+            Icemlt[:,:,d] = dropdims(mean(Icemlt_day, dims=3), dims=3)
+            
+            # snowdepthmin[i,:] = fsm.snowdepthmin[:]
+            # snowdepthmax[i,:] = fsm.snowdepthmax[:]
+            # swemin[i,:]       = fsm.swemin[:]
+            # swemax[i,:]       = fsm.swemax[:]
+            
+            d+=1
+            daily = 1
+        end
 
     end
 
@@ -139,7 +177,7 @@ function run_fsm(fsm, met, df_meteo)
     # write results to dataframe
     time = df_meteo["time"]
 
-    return time, hs, Tsnow1, Tsnow2, Tsnow3, Tsrf, alb, Sice, Sliq 
+    return time, hs, Tsnow1, Tsnow2, Tsnow3, Tsrf, alb, Sice, Sliq, Icemlt
 
 end
 #####################################################################################
@@ -149,10 +187,11 @@ print("setup")
 fsm, met, df_meteo = setup_example() 
 
 print("fsm")
-time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W = run_fsm(fsm, met, df_meteo)
+time_res = 24
+time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W, Icemelt = run_fsm(fsm, met, df_meteo, time_res)
 
 #*********************************************************
-pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_gblanc_100m_2018-2019.nc"
+pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/argentiere/output_argentiere_100m_2023-2024_daily_glacier.nc"
 
 #*********************************************************
 # open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
@@ -165,12 +204,12 @@ pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_gblanc_100m_20
 ds_results = NCDataset(pass,"c")
 
 # Define the dimension "lon" and "lat" with the size 100 and 110 resp.
-defDim(ds_results,"time",size(time)[1])
+defDim(ds_results,"time",trunc(Int,size(time)[1]./time_res))
 defDim(ds_results,"x",size(df_meteo["x"])[1])
 defDim(ds_results,"y",size(df_meteo["y"])[1])
 
 # Define the variables temperature
-defVar(ds_results,"time",time,("time",))
+defVar(ds_results,"time",time[1:24:end][1:end-1],("time",))
 defVar(ds_results,"x",df_meteo["x"],("x",))
 defVar(ds_results,"y",df_meteo["y"],("y",))
 defVar(ds_results,"hs",hs,("x","y","time"), attrib = OrderedDict("units" => "m"))
@@ -181,4 +220,5 @@ defVar(ds_results,"Ts",Ts,("x","y","time"), attrib = OrderedDict("units" => "K")
 defVar(ds_results,"albedo",albedo,("x","y","time"))
 defVar(ds_results,"I",I,("x","y","time"), attrib = OrderedDict("units" => "kg/m2"))
 defVar(ds_results,"W",W,("x","y","time"), attrib = OrderedDict("units" => "kg/m2"))
+defVar(ds_results,"Icemelt",Icemelt,("x","y","time"), attrib = OrderedDict("units" => "kg/m2/s"))
 
