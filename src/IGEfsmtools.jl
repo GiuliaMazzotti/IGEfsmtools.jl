@@ -1,6 +1,6 @@
 module IGEfsmtools
 
-using FlexibleSnowModelSMOSHD
+using FlexibleSnowModelOSHD
 using MAT
 using Dates
 using PrettyTables

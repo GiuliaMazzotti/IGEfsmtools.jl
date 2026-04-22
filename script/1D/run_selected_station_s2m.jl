@@ -18,14 +18,19 @@ using DataStructures
 # initialization function 
     # sets parameters (topo, meteo), configuration, variables (format)
     # opens meteo file
-function setup_example()
+function setup_example(list_id)
 
     # read meteo file
-    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/postes/meteo/FORCING_alpes_2018080106_2024080106.nc")
+    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/postes/meteo/FORCING_s2m_subset.nc")
     station_shapefile = ArchGDAL.read("C:/Users/navarrel/Documents/Workspace/MNT_alpes/shapefile/1D/s2m/stations_reanalysis_S2M_alpes.shp")
     shapefile = ArchGDAL.getlayer(station_shapefile, 0) |> DataFrame  
+    shapefile = shapefile[in.(shapefile.ID, Ref(list_id)),:]
+    sort!(shapefile, [:ID])
+    Tinit = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/postes/meteo/Tinit_allstations_alpes_1958080106_2024080106.nc")
+    mask = [s in list_id for s in Tinit["Number_of_points"][:]]
+    Tinit = Tinit["Tair"][:][mask] # DataFrame((Number_of_points=Tinit["Number_of_points"][:][mask], Tair=Tinit["Tair"][:][mask]))
 
-    Nx = 434
+    Nx = df_meteo.dim["Number_of_points"]
     Ny = 1
 
     # set landuse properties
@@ -40,7 +45,7 @@ function setup_example()
     lus["prec_multi"] = Dict("data" => [fill(1.0, size(shapefile)[1]);;])
     
     # define custom settings
-    settings = Dict("tile" => "open", "Nx" => Nx, "Ny" => Ny, "params" => Dict("wind_scaling" => 0.7, "dt" => 3600,
+    settings = Dict("tile" => "open", "Nx" => Nx, "Ny" => Ny, "Tinit" => Tinit, "params" => Dict("wind_scaling" => 0.7, "dt" => 3600,
                                                                                          "zT" => 1.5,
                                                                                          "zU" => 5.0,
                                                                                         "zRH" => 1.5))
@@ -51,7 +56,7 @@ function setup_example()
     # define meteo data struct
     met = MET{Float32,Int32}(Nx=Nx, Ny=Ny)
     
-     return shapefile, fsm, met, df_meteo
+    return shapefile, fsm, met, df_meteo
 
 end
 
@@ -71,9 +76,19 @@ function run_fsm(fsm, met, df_meteo)
     Sliq = zeros(dims)
     Subl = zeros(dims)
     Melt = zeros(dims)
-    Roff = zeros(dims)
-    Tsoil = zeros(dims)
+    Roff_snow = zeros(dims)
+    Tsoil1 = fill(NaN, dims)
+    Tsoil2 = fill(NaN, dims)
+    Tsoil3 = fill(NaN, dims)
+    Tsoil4 = fill(NaN, dims)
     Roff_tot = zeros(dims)
+    Melt_rate = zeros(dims)
+    Rnet = zeros(dims)
+    G = zeros(dims)
+    Gsoil = zeros(dims)
+    Hsrf = zeros(dims)
+    LEsrf = zeros(dims)
+    Esrf = zeros(dims)
     # snowdepthmin = zeros(dims)
     # snowdepthmax = zeros(dims)
     # swemin = zeros(dims)
@@ -134,10 +149,21 @@ function run_fsm(fsm, met, df_meteo)
 
         Subl[:,i] = fsm.Sbsrf[:] # (kg/m2)
         Melt[:,i] = fsm.meltflux_out[:] # (kg/m2)
-        Roff[:,i] = fsm.Roff_snow[:]
-
+        Roff_snow[:,i] = fsm.Roff_snow[:]
         Roff_tot[:,i] = fsm.Roff[:]
-        Tsoil[:,i] = fsm.Tsoil[1,:,:]
+        Melt_rate[:,i] = fsm.Melt[:] # (kg/m2/s)
+
+        Tsoil1[:,i] = fsm.Tsoil[1,:,:]
+        Tsoil2[:,i] = fsm.Tsoil[2,:,:]
+        Tsoil3[:,i] = fsm.Tsoil[3,:,:]
+        Tsoil4[:,i] = fsm.Tsoil[4,:,:]
+
+        Rnet[:,i] = fsm.Rnet[:]
+        G[:,i] = fsm.G[:]
+        Gsoil[:,i] = fsm.Gsoil[:]
+        Hsrf[:,i] = fsm.Hsrf[:]
+        LEsrf[:,i] = fsm.LEsrf[:]
+        Esrf[:,i] = fsm.Esrf[:]
 
         # snowdepthmin[:,i] = fsm.snowdepthmin[:]
         # snowdepthmax[:,i] = fsm.snowdepthmax[:]
@@ -152,20 +178,21 @@ function run_fsm(fsm, met, df_meteo)
     # write results to dataframe
     time = df_meteo["time"]
     
-    return time, hs, Tsnow1, Tsnow2, Tsnow3, Tsrf, alb, Sice, Sliq, Subl, Melt, Roff, Roff_tot, Tsoil
+    return time, hs, Tsnow1, Tsnow2, Tsnow3, Tsrf, alb, Sice, Sliq, Subl, Melt, Melt_rate, Roff_snow, Roff_tot, Tsoil1, Tsoil2, Tsoil3, Tsoil4, Rnet, G, Gsoil, Hsrf, LEsrf, Esrf
 
 end
 #####################################################################################
 # station = "GALIBIER-NIVOSE" # "GALIBIER-NIVOSE", "VILLAR D'ARENE"
+list_id = [5079402, 5181002, 38375402, 5101003, 74056416, 5063402, 73071403]
 
 print("setup")
-shapefile, fsm, met, df_meteo = setup_example() 
+shapefile, fsm, met, df_meteo = setup_example(list_id) 
 
 print("fsm")
-time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W, Subl, Melt, Roff, Roff_tot, Tsoil = run_fsm(fsm, met, df_meteo)
+time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W, Subl, Melt, Melt_rate, Roff_snow, Roff_tot, Tsoil1, Tsoil2, Tsoil3, Tsoil4, Rnet, G, Gsoil, Hsrf, LEsrf, Esrf = run_fsm(fsm, met, df_meteo)
 
 #*********************************************************
-pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_2018-2024_S2M_stations_test.nc" 
+pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/output_2018-2024_S2M_selected_stations_Tinit_test.nc" 
 
 #*********************************************************
 # open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
@@ -195,7 +222,17 @@ defVar(ds_results,"I",I,("Nb_stations","time"), attrib = OrderedDict("units" => 
 defVar(ds_results,"W",W,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2"))
 defVar(ds_results,"Subl",Subl,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2"))
 defVar(ds_results,"Melt",Melt,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2")) # unit ??
-defVar(ds_results,"Roff",Roff,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2"))
+defVar(ds_results,"Melt_rate",Melt_rate,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2/s"))
+defVar(ds_results,"Roff_snow",Roff_snow,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2"))
 defVar(ds_results,"Roff_tot",Roff_tot,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2"))
-defVar(ds_results,"Tsoil",Tsoil,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsoil1",Tsoil1,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsoil2",Tsoil2,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsoil3",Tsoil3,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Tsoil4",Tsoil4,("Nb_stations","time"), attrib = OrderedDict("units" => "K"))
+defVar(ds_results,"Rnet",Rnet,("Nb_stations","time"), attrib = OrderedDict("units" => "W/m2"))
+defVar(ds_results,"G",G,("Nb_stations","time"), attrib = OrderedDict("units" => "W/m2"))
+defVar(ds_results,"Gsoil",Gsoil,("Nb_stations","time"), attrib = OrderedDict("units" => "W/m2"))
+defVar(ds_results,"Hsrf",Hsrf,("Nb_stations","time"), attrib = OrderedDict("units" => "W/m2"))
+defVar(ds_results,"LEsrf",LEsrf,("Nb_stations","time"), attrib = OrderedDict("units" => "W/m2"))
+defVar(ds_results,"Esrf",Esrf,("Nb_stations","time"), attrib = OrderedDict("units" => "kg/m2/s"))
 

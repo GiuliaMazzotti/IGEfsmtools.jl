@@ -22,7 +22,7 @@ using Statistics
 function setup_example()
 
     # read meteo file
-    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/interpol/FORCING_s2m_argentiere_100m/meteo/FORCING_2023080106_2024080106_glacier.nc")
+    df_meteo = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/interpol/FORCING_s2m_argentiere_100m/meteo/FORCING_2018080106_2019080106_glacier.nc")
 
     Nx = df_meteo.dim["x"]
     Ny = df_meteo.dim["y"]
@@ -51,12 +51,15 @@ function setup_example()
     # define meteo data struct
     met = MET{Float32,Int32}(Nx=Nx, Ny=Ny)
     
-     return fsm, met, df_meteo
+    return fsm, met, df_meteo
+    
 
 end
 
 #####################################################################################
 function run_fsm(fsm, met, df_meteo, time_res)
+
+    # fsm.landcover = df_meteo["landcover"]
 
     dims = (df_meteo.dim["x"], df_meteo.dim["y"], trunc(Int, df_meteo.dim["time"]./time_res)) # (df_meteo.dim["time"],df_meteo.dim["Number_of_points"])
     dims_day =  (df_meteo.dim["x"], df_meteo.dim["y"], time_res)
@@ -191,7 +194,7 @@ time_res = 24
 time, hs, Tsnow1, Tsnow2, Tsnow3, Ts, albedo, I, W, Icemelt = run_fsm(fsm, met, df_meteo, time_res)
 
 #*********************************************************
-pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/argentiere/output_argentiere_100m_2023-2024_daily_glacier.nc"
+pass = "C:/Users/navarrel/Documents/Workspace/Data/outputs/argentiere/output_argentiere_100m_2018-2019_daily_glacier.nc"
 
 #*********************************************************
 # open("C:/Users/elise/Documents/These/Workspace/Data/outputs/README.md", "a") do f
