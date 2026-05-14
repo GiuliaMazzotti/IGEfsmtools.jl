@@ -1,8 +1,8 @@
 function read_meteo!(met::MET{Tf,Ti}, i::Int32, settings::Dict) where {Tf<:Real,Ti<:Integer}
   
-  meteo_file = Dataset(settings["file_path"]) # Dataset() ?
+  meteo_file = NCDataset(settings["file_path"]) # Dataset() ?
 
-  time      = meteo_file["time"][:]                
+  time      = meteo_file["time"]                
   DIR_SW    = meteo_file["DIR_SWdown"]           
   SCA_SW    = meteo_file["SCA_SWdown"]
   LWdown    = meteo_file["LWdown"]
@@ -13,9 +13,11 @@ function read_meteo!(met::MET{Tf,Ti}, i::Int32, settings::Dict) where {Tf<:Real,
   Wind      = meteo_file["Wind"]
   PSurf     = meteo_file["PSurf"]
 
+  close(meteo_file)
+
   t_i = time[i]
 
-  if ! (settings["Ny"] == 1)
+  if ! Ny == 1
     # assign met fields 
     met.year  .= year(t_i)
     met.month .= month(t_i)
@@ -50,7 +52,5 @@ function read_meteo!(met::MET{Tf,Ti}, i::Int32, settings::Dict) where {Tf<:Real,
     met.Ps    .= PSurf[:,i]
     met.Sf24h .= dropdims(sum(Snowf[:, max(1,i-23):i], dims=2), dims=2)
   end
-
-  close(meteo_file)
 
 end

@@ -28,11 +28,6 @@ const AVAILABLE_OUTPUT_VARS = Dict(
         "unit" => "mm/tstep",
         "type" => SUM
     ),
-    "Roff_snow" => Dict(
-        "longname" => "runoff from snow tile",
-        "unit" => "mm/tstep",
-        "type" => SUM
-    ),
     "meltflux_out" => Dict(
         "longname" => "runoff from snow",
         "unit" => "mm/tstep",
@@ -48,7 +43,7 @@ const AVAILABLE_OUTPUT_VARS = Dict(
         "unit" => "-",
         "type" => INSTANT
     ),
-    "Ds" => Dict(
+    "snowdepth" => Dict(
         "longname" => "snow depth",
         "unit" => "m",
         "type" => INSTANT
@@ -62,6 +57,21 @@ const AVAILABLE_OUTPUT_VARS = Dict(
         "longname" => "surface temperature",
         "unit" => "K",
         "type" => INSTANT
+    ),
+    "Sdirt" => Dict(
+        "longname" => "incoming direct shortwave radiation",
+        "unit" => "W/m^2",
+        "type" => MEAN
+    ),
+    "Sdift" => Dict(
+        "longname" => "incoming diffuse shortwave radiation",
+        "unit" => "W/m^2",
+        "type" => MEAN
+    ),
+    "LWt" => Dict(
+        "longname" => "incoming longwave radiation",
+        "unit" => "W/m^2",
+        "type" => MEAN
     ),
     "Sliq" => Dict(
         "longname" => "liquid water content",
@@ -139,6 +149,11 @@ const AVAILABLE_OUTPUT_VARS = Dict(
         "unit" => "K",
         "type" => INSTANT
     ),
+    "SWsrf" => Dict(
+        "longname" => "net shortwave radiation absorbed by the surface",
+        "unit" => "W/m^2",
+        "type" => MEAN
+    ),
     "Esrf" => Dict(
         "longname" => "moisture flux from the surface",
         "unit" => "kg/m^2/s",
@@ -169,93 +184,119 @@ const AVAILABLE_OUTPUT_VARS = Dict(
         "unit" => "kg/m^2/s",
         "type" => MEAN
     ),
+    "KH" => Dict(
+        "longname" => "Eddy diffusivity for heat to the atmosphere",
+        "unit" => "m/s",
+        "type" => MEAN
+    ),
+    "KHg" => Dict(
+        "longname" => "Eddy diffusivity for heat from the ground",
+        "unit" => "m/s",
+        "type" => MEAN
+    ),
+    "KWg" => Dict(
+        "longname" => "Eddy diffusivity for water from the ground",
+        "unit" => "m/s",
+        "type" => MEAN
+    ),
+    "snowdepthmin" => Dict(
+        "longname" => "minimum snow depth at time step of swemin",
+        "unit" => "m",
+        "type" => INSTANT
+    ),
+    "snowdepthmax" => Dict(
+        "longname" => "maximum snow depth at time stemp of swemax",
+        "unit" => "m",
+        "type" => INSTANT
+    ),
+    "snowdepthhist" => Dict(
+        "longname" => "history of snow depth during last 14 days (most recent entries first)",
+        "unit" => "m",
+        "type" => INSTANT
+    ),
+    "swemin" => Dict(
+        "longname" => "minimum swe during the season",
+        "unit" => "mm",
+        "type" => INSTANT
+    ),
+    "swemax" => Dict(
+        "longname" => "maximum swe during the season",
+        "unit" => "mm",
+        "type" => INSTANT
+    ),
+    "swehist" => Dict(
+        "longname" => "history of SWE during last 14 days",
+        "unit" => "mm",
+        "type" => INSTANT
+    )
 )
 
 # Variable access functions
 
-get_variable_value(fsm::FSM, ::Val{:Ds}) = dropdims(sum(fsm.Ds, dims=1), dims=1)
-# get_variable_value(fsm::FSM, ::Val{:Ds}) = dropdims(sum(fsm.Ds, dims=1), dims=1) .* fsm.fsnow
+get_variable_value(fsm::FSM, ::Val{:snowdepth}) = dropdims(sum(fsm.Ds, dims=1), dims=1) .* fsm.fsnow
 get_variable_value(fsm::FSM, ::Val{:SWE}) = dropdims(sum(fsm.Sice .+ fsm.Sliq, dims=1), dims=1)
 get_variable_value(fsm::FSM, ::Val{:Sliq}) = dropdims(sum(fsm.Sliq, dims=1), dims=1)
 get_variable_value(fsm::FSM, ::Val{:Sice}) = dropdims(sum(fsm.Sice, dims=1), dims=1)
-# get_variable_value(fsm::FSM, var::Int) = In32(var)
-get_variable_value(fsm::FSM, ::Val{:Tsnow1}) = getfield(fsm, :Tsnow)[1,:,:]
-get_variable_value(fsm::FSM, ::Val{:Tsnow2}) = getfield(fsm, :Tsnow)[2,:,:]
-get_variable_value(fsm::FSM, ::Val{:Tsnow3}) = getfield(fsm, :Tsnow)[3,:,:]
-get_variable_value(fsm::FSM, ::Val{:Tsoil1}) = getfield(fsm, :Tsoil)[1,:,:]
-get_variable_value(fsm::FSM, ::Val{:Tsoil2}) = getfield(fsm, :Tsoil)[2,:,:]
-get_variable_value(fsm::FSM, ::Val{:Tsoil3}) = getfield(fsm, :Tsoil)[3,:,:]
-get_variable_value(fsm::FSM, ::Val{:Tsoil4}) = getfield(fsm, :Tsoil)[4,:,:]
-
 get_variable_value(fsm::FSM, ::Val{var}) where var = getfield(fsm, var)
 get_variable_value(fsm::FSM, var::Symbol) = get_variable_value(fsm, Val(var))
+get_variable_value(fsm::FSM, ::Val{:Tsnow1}) = get_variable_value(fsm, :Tsnow)[1,:,:]
+get_variable_value(fsm::FSM, ::Val{:Tsnow2}) = get_variable_value(fsm, :Tsnow)[2,:,:]
+get_variable_value(fsm::FSM, ::Val{:Tsnow3}) = get_variable_value(fsm, :Tsnow)[3,:,:]
+get_variable_value(fsm::FSM, ::Val{:Tsoil1}) = get_variable_value(fsm, :Tsoil)[1,:,:]
+get_variable_value(fsm::FSM, ::Val{:Tsoil2}) = get_variable_value(fsm, :Tsoil)[2,:,:]
+get_variable_value(fsm::FSM, ::Val{:Tsoil3}) = get_variable_value(fsm, :Tsoil)[3,:,:]
+get_variable_value(fsm::FSM, ::Val{:Tsoil4}) = get_variable_value(fsm, :Tsoil)[4,:,:]
 
-
-# get_variable_size(fsm::FSM, var::String) = size(getfield(fsm, var))
+get_variable_size(fsm::FSM, ::Val{:snowdepth}) = (fsm.Nx, fsm.Ny)
+get_variable_size(fsm::FSM, ::Val{:SWE}) = (fsm.Nx, fsm.Ny)
+get_variable_size(fsm::FSM, ::Val{:Sliq_out}) = (fsm.Nx, fsm.Ny)
+get_variable_size(fsm::FSM, ::Val{var}) where var = size(getfield(fsm, var))
+get_variable_size(fsm::FSM, var::Symbol) = get_variable_size(fsm, Val(var))
 
 # Function for creating methods for saving data
 # **STEP 1** Create the output_dicts corresponding to the raw tables and info for every output variable "make_saver"
 # **STEP 2** At every time step, call "fill_saver" (resp. "fill_daily_saver") to fill the output tables with the corresponding values
 # **STEP 3** Create the file.nc and save it "grid_saver" (resp. "pt_saver")
 
-function make_saver(output_vars::Vector{String}, Nx::Int, Ny::Int, period::Int32) # for daily simu initialize two output_dicts with make saver : one with period/24 and one with period=24, loop on output_dicts daily (every 24h)
+function make_saver(output_vars::Vector{String}, Nx::Int32, Ny::Int32, period::Int32) # for daily simu initialize two output_dicts with make saver : one with period/24 and one with period=24, loop on output_dicts daily (every 24h)
     invalid_vars = setdiff(output_vars, keys(AVAILABLE_OUTPUT_VARS))
     !isempty(invalid_vars) && error("Invalid variables: $(join(invalid_vars, ", "))")
 
     output_dicts = Dict[]
     for var in output_vars
-        if ! (Ny == 1)
-            output_dict = Dict(
-                "data" => fill(0.0,Nx,Ny,period),
-                "shortname" => var,
-                "longname" => AVAILABLE_OUTPUT_VARS[var]["longname"],
-                "unit" => AVAILABLE_OUTPUT_VARS[var]["unit"]
-            )
-        else 
-            output_dict = Dict(
-                "data" => fill(0.0,Nx,period),
-                "shortname" => var,
-                "longname" => AVAILABLE_OUTPUT_VARS[var]["longname"],
-                "unit" => AVAILABLE_OUTPUT_VARS[var]["unit"]
-            )
-        end
+        output_dict = Dict(
+            "data" => fill(0.0,Nx,Ny,period),
+            "shortname" => var,
+            "longname" => AVAILABLE_OUTPUT_VARS[var]["longname"],
+            "unit" => AVAILABLE_OUTPUT_VARS[var]["unit"]
+        )
         push!(output_dicts, output_dict)
     end
     return output_dicts
 end
 
-function fill_daily_grid_saver(output_dicts::Vector{Dict}, daily_output_dicts::Vector{Dict}, step::Int32) # here step is equal to period/24, to call at each time step
+function fill_daily_saver(output_dicts::Vector{Dict}, daily_output_dicts::Vector{Dict}, step::Int32) # here step is equal to period/24, to call at each time step
     for var in keys(output_dicts)
-        output_dicts[var]["data"][:,:,step] = dropdims(mean(daily_output_dicts[var]["data"], dims=3), dims=3)
+        output_dicts[var][data][:,:,step] = dropdims(mean(daily_output_dicts[var][data], dims=3), dims=3)
     end
     return output_dicts
 end
 
-function fill_grid_saver(fsm::FSM, output_dicts::Vector{Dict}, step::Int32) # to call at each time step
+function fill_saver(fsm::FSM, output_dicts::Vector{Dict}, step::Int32) # to call at each time step
     for var in keys(output_dicts)
-        output_dicts[var]["data"][:,:,step] = get_variable_value(fsm, Symbol(output_dicts[var]["shortname"]))
+        output_dicts[var][data][:,:,step] = get_variable_value(fsm, var)
     end
     return output_dicts
 end
 
-function fill_pt_saver(fsm::FSM, output_dicts::Vector{Dict}, step::Int32) # to call at each time step
-    for var in keys(output_dicts)
-        output_dicts[var]["data"][:,step] = get_variable_value(fsm, Symbol(output_dicts[var]["shortname"]))
-    end
-    return output_dicts
-end
-
-function grid_saver(output_dicts::Vector{Dict}, settings::Dict, Nx::Int, Ny::Int, time::Any)
-    file = NCDataset(settings["out_file"], "c")
-    defDim(file,"time",Int32(length(time)))
+function grid_saver(output_dicts::Vector{Dict}, filepath::String, Nx::Int32, Ny::Int32, period::Int32)
+    file = NCDataset(filepath, "c")
+    defDim(file,"time",period)
     defDim(file,"x",Nx)
     defDim(file,"y",Ny)
-    defVar(file,"time",time,("time",))
-    defVar(file,"x",settings["x"],("x",))
-    defVar(file,"y",settings["y"],("y",))
 
     for var in keys(output_dicts)
-        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("x","y"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
+        defVar(file,var,output_dicts[var][data])
     end
 
     for output_dict in output_dicts
@@ -264,15 +305,13 @@ function grid_saver(output_dicts::Vector{Dict}, settings::Dict, Nx::Int, Ny::Int
     return nothing
 end
 
-function pt_saver(output_dicts::Vector{Dict}, settings::Dict, Nx::Int, time::Any)
-    file = NCDataset(settings["out_file"], "c")
-    defDim(file,"time",Int32(length(time)))
-    defDim(file,"Nb_stations",Nx)
-    defVar(file,"time",time, ("time",))
-    defVar(file,"id",settings["id_point"], ("Nb_stations",))
+function pt_saver(output_dicts::Vector{Dict}, filepath::String, Nx::Int32, period::Int32)
+    file = NCDataset(filepath, "c")
+    defDim(file,"time",period)
+    defDim(file,"Nb_points",Nx)
 
     for var in keys(output_dicts)
-        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("Nb_stations", "time"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
+        defVar(file,var,output_dicts[var][data])
     end
 
     for output_dict in output_dicts
