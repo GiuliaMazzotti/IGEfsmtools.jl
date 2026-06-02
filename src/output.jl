@@ -233,14 +233,14 @@ end
 
 function fill_grid_saver(fsm::FSM, output_dicts::Vector{Dict}, step::Int32) # to call at each time step
     for var in keys(output_dicts)
-        output_dicts[var]["data"][:,:,step] = get_variable_value(fsm, Symbol(output_dicts[var]["shortname"]))
+        output_dicts[var]["data"][:,:,step] = get_variable_value(fsm, Val(Symbol(output_dicts[var]["shortname"])))
     end
     return output_dicts
 end
 
 function fill_pt_saver(fsm::FSM, output_dicts::Vector{Dict}, step::Int32) # to call at each time step
     for var in keys(output_dicts)
-        output_dicts[var]["data"][:,step] = get_variable_value(fsm, Symbol(output_dicts[var]["shortname"]))
+        output_dicts[var]["data"][:,step] = get_variable_value(fsm, Val(Symbol(output_dicts[var]["shortname"])))
     end
     return output_dicts
 end
@@ -267,12 +267,12 @@ end
 function pt_saver(output_dicts::Vector{Dict}, settings::Dict, Nx::Int, time::Any)
     file = NCDataset(settings["out_file"], "c")
     defDim(file,"time",Int32(length(time)))
-    defDim(file,"Nb_stations",Nx)
+    defDim(file,"Number_of_points",Nx)
     defVar(file,"time",time, ("time",))
-    defVar(file,"id",settings["id_point"], ("Nb_stations",))
+    defVar(file,"Number_of_points",settings["id_point"], ("Number_of_points",))
 
     for var in keys(output_dicts)
-        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("Nb_stations", "time"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
+        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("Number_of_points", "time"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
     end
 
     for output_dict in output_dicts

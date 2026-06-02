@@ -6,13 +6,13 @@ using IGEfsmtools
 
 const settings = Dict(
     "tile" => "open",
-    "config" => Dict("SNFRAC" => 0),
-    "params" => Dict("wind_scaling" => 1.0, "dt" => 3600, "zT" => 1.5, "zU" => 5.0, "zRH" => 1.5),
-    "file_path" => "C:/Users/navarrel/Documents/Workspace/Data/s2m/balises/mask/meteo/FORCING_1999080106_2000080106.nc", # change it
+    "config" => Dict("ALBEDO" => 1, "EXCHNG" => 0),
+    "params" => Dict("wind_scaling" => 1.0, "dt" => 3600, "zT" => 1.5, "zU" => 5.0, "zRH" => 1.5), #"tcld", "tmlt", "Sfmin" => 15, "bstb" => 8
+    "file_path" => "C:/Users/navarrel/Documents/Workspace/Data/s2m/postes/meteo/FORCING_s2m_subset.nc", # change it
     "shapefile" => "C:/Users/navarrel/Documents/Workspace/MNT_alpes/shapefile/1D/s2m/stations_reanalysis_S2M_alpes.shp", # for s2m poste only
-    "list_id" => "all", # for s2m poste only
-    "out_file" => "C:/Users/navarrel/Documents/Workspace/Data/outputs/gblanc/balises/output_1999-2000_S2M_balises_gblanc.nc",
-    "output_vars" => ["Ds", "Tsnow1", "Tsnow2", "Tsnow3", "Tsrf", "asrf_out", "Sice", "Sliq", "Sbsrf", "meltflux_out", "Melt", "Roff_snow", "Roff", "Tsoil1", "Tsoil2", "Tsoil3", "Tsoil4", "Rnet", "Gsoil", "Hsrf", "LEsrf", "Esrf"],
+    "list_id" => [5079402, 5181002, 38375402, 5101003, 74056416, 5063402, 73071403], #"all", # for s2m poste only
+    "out_file" => "C:/Users/navarrel/Documents/Workspace/Data/outputs/calibration/output_2018-2024_S2M_selected_stations_Tinit_ALBEDO=1_EXCHGN=0.nc",
+    "output_vars" => ["Ds", "Tsnow1", "Tsnow2", "Tsnow3", "Tsrf", "asrf_out", "Sice", "Sliq", "SWE", "Sbsrf", "meltflux_out", "Roff_snow", "Roff", "Tsoil1", "Tsoil2", "Tsoil3", "Tsoil4"],
 )
 
 ###
@@ -25,4 +25,4 @@ const settings = Dict(
 # run_point_simulation(settings, Tf, Ti, verbose)
 ###
 
-run_point_simulation(settings=settings)
+run_poste_simulation(settings=settings)

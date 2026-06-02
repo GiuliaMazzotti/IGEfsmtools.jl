@@ -5,7 +5,7 @@ function init_grid!(settings::Dict)
 
   Nx = meteo_file.dim["x"]
   Ny = meteo_file.dim["y"]
-  time = meteo_file["time"]
+  time = meteo_file["time"][:]
 
   # set landuse properties
   lus = Dict()
@@ -35,16 +35,17 @@ function init_poste!(settings::Dict)
 
   Nx = meteo_file.dim["Number_of_points"]
   Ny = 1
-  time = meteo_file["time"]
+  time = meteo_file["time"][:]
 
-  if  ! (list_id == "all")
-    shapefile = shapefile[in.(shapefile.ID, Ref(list_id)),:]
+  if  ! (settings["list_id"] == "all")
+    shapefile = shapefile[in.(shapefile.ID, Ref(settings["list_id"])),:]
     sort!(shapefile, [:ID])
-    mask = [s in list_id for s in Tinit["Number_of_points"][:]]
+    mask = [s in settings["list_id"] for s in Tinit["Number_of_points"][:]]
     Tinit = Tinit["Tair"][:][mask]
-    id_point = list_id
+    id_point = sort!(settings["list_id"])
   else
     sort!(shapefile, [:ID])
+    Tinit = Tinit["Tair"][:]
     id_point = shapefile.ID
   end
 
@@ -62,9 +63,9 @@ function init_poste!(settings::Dict)
   merge!(settings, Dict("Tinit" => Tinit, "Nx" => Nx, "Ny" => Ny, "id_point" => id_point))
 
   close(meteo_file)
-  close(station_shapefile)
-  close(shapefile)
-  close(Tinit)
+  # close(station_shapefile)
+  # close(shapefile)
+  # close(Tinit)
 
   return lus, Nx, Ny, time
 end
