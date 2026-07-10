@@ -38,6 +38,11 @@ const AVAILABLE_OUTPUT_VARS = Dict(
         "unit" => "mm/tstep",
         "type" => SUM
     ),
+    "Icemlt" => Dict(
+        "longname" => "runoff rate from ice",
+        "unit" => "mm/s",
+        "type" => SUM
+    ),
     "Sbsrf" => Dict(
         "longname" => "sublimation from snow",
         "unit" => "mm/tstep",

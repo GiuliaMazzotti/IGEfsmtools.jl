@@ -17,38 +17,38 @@ function read_meteo!(met::MET{Tf,Ti}, i::Int32, settings::Dict) where {Tf<:Real,
 
   if ! (settings["Ny"] == 1)
     # assign met fields 
-    met.year  .= year(t_i)
-    met.month .= month(t_i)
-    met.day   .= day(t_i)
-    met.hour  .= hour(t_i)
+    # met.year  .= year(t_i)
+    # met.month .= month(t_i)
+    # met.day   .= day(t_i)
+    # met.hour  .= hour(t_i)
     met.Sdir  .= DIR_SW[:,:,i]
     met.Sdif  .= SCA_SW[:,:,i]
     met.Sdird .= DIR_SW[:,:,i]
     met.LW    .= LWdown[:,:,i]
-    met.Sf    .= Snowf[:,:,i] .* Int32(3600)
-    met.Rf    .= Rainf[:,:,i] .* Int32(3600)
+    met.Sf    .= Snowf[:,:,i] # .* Int32(3600)
+    met.Rf    .= Rainf[:,:,i] # .* Int32(3600)
     met.Ta    .= Tair[:,:,i]
     met.RH    .= Qair[:,:,i]
     met.Ua    .= Wind[:,:,i]
     met.Ps    .= PSurf[:,:,i]
-    met.Sf24h .= dropdims(sum(Snowf[:,:,max(1,i-23):i], dims=3), dims=3)
+    met.Sf24h .= dropdims(sum(Snowf[:,:,max(1,i-23):i] .*Int32(3600), dims=3), dims=3)
   else
     # assign met fields 
-    met.year  .= year(t_i)
-    met.month .= month(t_i)
-    met.day   .= day(t_i)
-    met.hour  .= hour(t_i)
+    # met.year  .= year(t_i)
+    # met.month .= month(t_i)
+    # met.day   .= day(t_i)
+    # met.hour  .= hour(t_i)
     met.Sdir  .= DIR_SW[:,i]
     met.Sdif  .= SCA_SW[:,i]
     met.Sdird .= DIR_SW[:,i]
     met.LW    .= LWdown[:,i]
-    met.Sf    .= Snowf[:,i] .* Int32(3600)
-    met.Rf    .= Rainf[:,i] .* Int32(3600)
+    met.Sf    .= Snowf[:,i] # .* Int32(3600)
+    met.Rf    .= Rainf[:,i] # .* Int32(3600)
     met.Ta    .= Tair[:,i]
     met.RH    .= Qair[:,i]
     met.Ua    .= Wind[:,i]
     met.Ps    .= PSurf[:,i]
-    met.Sf24h .= dropdims(sum(Snowf[:, max(1,i-23):i], dims=2), dims=2)
+    met.Sf24h .= dropdims(sum(Snowf[:, max(1,i-23):i] .*Int32(3600), dims=2), dims=2) 
   end
 
   close(meteo_file)

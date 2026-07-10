@@ -88,6 +88,8 @@ function init_point!(settings::Dict)
   lus["xi"] = Dict("data" => [fill(1.0, Nx);;])
   lus["Ld"] = Dict("data" => [fill(1.0, Nx);;])
   lus["prec_multi"] = Dict("data" => [fill(1.0, Nx);;])
+  # lus["glacier"] = Dict("data" => [fill(1.0, Nx);;])
+  lus["landcover"] = Dict("data" => [ones(Int32, Nx, Ny).*settings["landcover"];;])
   
   merge!(settings, Dict("Nx" => Nx, "Ny" => Ny, "id_point" => meteo_file["station"][:]))
 
