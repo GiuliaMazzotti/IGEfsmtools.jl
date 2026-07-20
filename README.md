@@ -45,6 +45,16 @@ Definition of the simulation type :
 *run_poste_simulation(settings=settings) => list_id, shapefile
 *run_point_simulation(settings=settings)
 
+3. **Activating package environment and running the simulation:**
+
+ ```julia
+   using Pkg
+   Pkg.activate(".")
+   Pkg.instantiate()
+   using IGEfsmtools
+   include("script/run.jl")
+   ```
+
 ## Examples
 
 A simulation representing ground points :
