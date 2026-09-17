@@ -17,9 +17,36 @@ function init_grid!(settings::Dict)
   lus["xi"] = Dict("data" => [fill(1.0, Nx);;])
   lus["Ld"] = Dict("data" => [fill(1.0, Nx);;])
   lus["prec_multi"] = Dict("data" => [fill(1.0, Nx);;])
+
+  merge!(settings, Dict("Nx" => Nx, "Ny" => Ny, "x" => meteo_file["x"][:], "y" => meteo_file["y"][:]))
+
+  close(meteo_file)
+
+  return lus, Nx, Ny, time
+end
+
+function init_glacier_grid!(settings::Dict)
+
+  # read meteo file
+  meteo_file = Dataset(settings["file_path"]) # Dataset() ?
+
+  Nx = meteo_file.dim["x"]
+  Ny = meteo_file.dim["y"]
+  time = meteo_file["time"][:]
+
+  # set landuse properties
+  lus = Dict()
+  lus["skyvf"] = Dict("data" => [fill(1.0, Nx);;])           
+  lus["x"] = Dict("data" => [meteo_file["LON"];;])
+  lus["y"] = Dict("data" => [meteo_file["LAT"];;])
+  lus["elevation"] = Dict("data" => [meteo_file["ZS"];;])
+  lus["slopemu"] = Dict("data" => [fill(1.0, Nx);;])
+  lus["xi"] = Dict("data" => [fill(1.0, Nx);;])
+  lus["Ld"] = Dict("data" => [fill(1.0, Nx);;])
+  lus["prec_multi"] = Dict("data" => [fill(1.0, Nx);;])
   lus["landcover"] = Dict("data" => [meteo_file["landcover"];;])  
 
-  merge!(settings, Dict("Nx" => Nx, "Ny" => Ny, "x" => meteo_file["x"], "y" => meteo_file["y"]))
+  merge!(settings, Dict("Nx" => Nx, "Ny" => Ny, "x" => meteo_file["x"][:], "y" => meteo_file["y"][:]))
 
   close(meteo_file)
 
@@ -74,22 +101,22 @@ function init_point!(settings::Dict)
   # read meteo file
   meteo_file = Dataset(settings["file_path"]) # Dataset() ?
 
-  Nx = meteo_file.dim["Number_of_points"]
+  Nx = meteo_file.dim["Number_of_points"][:]
   Ny = 1
   time = meteo_file["time"][:]
 
   # set landuse properties
   lus = Dict()
   lus["skyvf"] = Dict("data" => [fill(1.0, Nx);;])           
-  lus["x"] = Dict("data" => [meteo_file["LON"];;])
-  lus["y"] = Dict("data" => [meteo_file["LAT"];;])
-  lus["elevation"] = Dict("data" => [meteo_file["ZS"];;])
+  lus["x"] = Dict("data" => [meteo_file["LON"][:];;])
+  lus["y"] = Dict("data" => [meteo_file["LAT"][:];;])
+  lus["elevation"] = Dict("data" => [meteo_file["ZS"][:];;])
   lus["slopemu"] = Dict("data" => [fill(1.0, Nx);;])
   lus["xi"] = Dict("data" => [fill(1.0, Nx);;])
   lus["Ld"] = Dict("data" => [fill(1.0, Nx);;])
   lus["prec_multi"] = Dict("data" => [fill(1.0, Nx);;])
   # lus["glacier"] = Dict("data" => [fill(1.0, Nx);;])
-  lus["landcover"] = Dict("data" => [ones(Int32, Nx, Ny).*settings["landcover"];;])
+  lus["landcover"] = Dict("data" => [ones(Int32, Nx, Ny).*settings["landcover"][:];;])
   
   merge!(settings, Dict("Nx" => Nx, "Ny" => Ny, "id_point" => meteo_file["station"][:]))
 

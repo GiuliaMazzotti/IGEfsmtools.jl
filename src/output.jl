@@ -260,7 +260,7 @@ function grid_saver(output_dicts::Vector{Dict}, settings::Dict, Nx::Int, Ny::Int
     defVar(file,"y",settings["y"],("y",))
 
     for var in keys(output_dicts)
-        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("x","y"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
+        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("x","y","time"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
     end
 
     for output_dict in output_dicts
@@ -277,7 +277,7 @@ function pt_saver(output_dicts::Vector{Dict}, settings::Dict, Nx::Int, time::Any
     defVar(file,"Number_of_points",settings["id_point"], ("Number_of_points",))
 
     for var in keys(output_dicts)
-        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("Number_of_points", "time"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
+        defVar(file,output_dicts[var]["shortname"],output_dicts[var]["data"], ("Number_of_points","time"), attrib = OrderedDict("units" => output_dicts[var]["unit"]))
     end
 
     for output_dict in output_dicts
