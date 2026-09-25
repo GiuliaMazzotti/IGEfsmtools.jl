@@ -10,6 +10,7 @@ using ArchGDAL
 using GeoDataFrames
 using DataStructures
 using Statistics
+using Infiltrator
 
 include("init.jl")
 include("meteo_readers.jl")
@@ -17,7 +18,6 @@ include("output.jl")
 include("run_simu.jl")
 
 export settings_default
-export setup
 export init_grid!, init_glacier_grid!, init_poste!, init_point!
 export make_saver, fill_saver, fill_daily_saver, grid_saver, pt_saver
 export read_meteo!
