@@ -1,30 +1,7 @@
-# OSHD-tuned (SNOPRP=1) elevation-dependent snow surface properties, matching the
-# defaults of the pre-GPU model (FlexibleSnowModelOSHD.jl, giulia-glacier_devs, setup.jl,
-# "Tuned snow surface properties" branch). The GPU port's defaults (PrognosticAlbedo's
-# adm/adc, and Surface's z0_snow) instead correspond to that model's SNOPRP=0 (untuned)
-# branch, so they must be constructed explicitly here to reproduce old behaviour.
-
-# Cold-snow albedo decay time (h): 3000h at/below 1500 m, 6000h at/above 2300 m, linear between.
-function tuned_adc(dem::AbstractArray{Tf}) where {Tf<:Real}
-  adc = Tf(6000) .+ (Tf(2300) .- dem) ./ (Tf(2300) - Tf(1500)) .* (Tf(3000) - Tf(6000))
-  adc[dem .>= Tf(2300)] .= Tf(6000)
-  adc[dem .<= Tf(1500)] .= Tf(3000)
-  return adc
-end
-
-# Open-terrain snow roughness length (m): 0.2 m at/below 1500 m, 0.01 m at/above 2300 m, linear between.
-function tuned_z0_snow(dem::AbstractArray{Tf}) where {Tf<:Real}
-  z0_snow = fill(Tf(0.2), size(dem))
-  mask = dem .>= Tf(1500)
-  z0_snow[mask] .= Tf(0.2) .+ (dem[mask] .- Tf(1500)) ./ (Tf(2300) - Tf(1500)) .* (Tf(0.01) - Tf(0.2))
-  z0_snow[dem .>= Tf(2300)] .= Tf(0.01)
-  return z0_snow
-end
-
 function init_grid!(settings::Dict)
 
   # read meteo file
-  meteo_file = Dataset(settings["file_path"])
+  meteo_file = Dataset(settings["file_path"]) 
 
   Nx = meteo_file.dim["x"]
   Ny = meteo_file.dim["y"]
@@ -32,7 +9,7 @@ function init_grid!(settings::Dict)
 
   # set landuse properties
   lus = Dict()
-  lus["skyvf"] = Dict("data" => fill(1.0, Nx, Ny))
+  lus["skyvf"] = Dict("data" => fill(1.0, Nx, Ny))    
   lus["elevation"] = Dict("data" => meteo_file["ZS"][:,:])
   lus["slopemu"] = Dict("data" => fill(1.0, Nx, Ny))
   lus["xi"] = Dict("data" => fill(1.0, Nx, Ny))
@@ -43,12 +20,7 @@ function init_grid!(settings::Dict)
 
   grid = Grid(settings["precision"]; Nx = Nx, Ny = Ny)
   params = FlexibleSnowModelOSHD.Parameters{Float32}(zT=1.5, zU=5, zRH=1.5)
-
-  dem = Float32.(lus["elevation"]["data"])
-  snow_albedo = PrognosticAlbedo{Float32}(grid; adm=Float32(130), adc=tuned_adc(dem))
-
-  fsm = FSM(grid, lus, params=params, snow_albedo=snow_albedo)
-  fsm.surface.z0_snow .= tuned_z0_snow(dem)
+  fsm = FSM(grid, lus, params=params)
 
   met = MET{settings["precision"]}(Nx=Nx, Ny=Ny)
 
@@ -138,12 +110,7 @@ function init_poste!(settings::Dict)
 
   grid = Grid(settings["precision"]; Nx = Nx, Ny = Ny)
   params = FlexibleSnowModelOSHD.Parameters{Float32}(zT=1.5, zU=5, zRH=1.5)
-
-  dem = reshape(Float32.(lus["elevation"]["data"]), Nx, Ny) # Surface/PrognosticAlbedo fields are (Nx, Ny) matrices
-  snow_albedo = PrognosticAlbedo{Float32}(grid; adm=Float32(130), adc=tuned_adc(dem))
-
-  fsm = FSM(grid, lus, params=params, snow_albedo=snow_albedo)
-  fsm.surface.z0_snow .= tuned_z0_snow(dem)
+  fsm = FSM(grid, lus, params=params)
 
   met = MET{settings["precision"]}(Nx=Nx, Ny=Ny)
 

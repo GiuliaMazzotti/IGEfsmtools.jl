@@ -58,7 +58,7 @@ function run_grid_daily_simulation(;
 
     # Create accumulator and saver functions for storing model results
     if isinteger(length(time)/24)
-        output_dicts = make_saver(output_vars, settings["Nx"], settings["Ny"], length(time)/24)
+        output_dicts = make_saver(output_vars, settings["Nx"], settings["Ny"], Int(length(time)/24))
     else
         output_dicts = make_saver(output_vars, settings["Nx"], settings["Ny"], Int(round(length(time)/24))+1)
     end
