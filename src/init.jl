@@ -50,6 +50,11 @@ function init_grid!(settings::Dict)
   fsm = FSM(grid, lus, params=params, snow_albedo=snow_albedo)
   fsm.surface.z0_snow .= tuned_z0_snow(dem)
 
+  # Initial soil temperature: override models defaults using settings["Tinit"] (default 273.15 K).
+  Tinit = Float32(get(settings, "Tinit", 273.15))
+  fsm.state.Tsoil .= min(Tinit, Float32(273.15))
+
+
   met = MET{settings["precision"]}(Nx=Nx, Ny=Ny)
 
   close(meteo_file)
