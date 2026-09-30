@@ -48,7 +48,7 @@ function resolve(r::ElevationTuned, grid, landuse)
     out = breaks[1] .+ (dem .- elev_breaks[1]) ./ (elev_breaks[2] - elev_breaks[1]) .* (breaks[2] - breaks[1])
     out[dem .>= elev_breaks[2]] .= breaks[2]
     out[dem .<= elev_breaks[1]] .= breaks[1]
-    return out
+    return reshape(out, grid.Nx, grid.Ny)
 end
 
 """
@@ -61,7 +61,10 @@ or ready-made instance defers to FSM's `instantiate`.
 materialize(x, grid, landuse) = instantiate(x, grid)
 
 function materialize(s::SchemeSpec{T}, grid, landuse) where {T}
-    resolved = map(v -> resolve(v, grid, landuse), s.kwargs)
+    resolved = map(s.kwargs) do v
+        r = resolve(v, grid, landuse)
+        r isa AbstractVector ? reshape(r, grid.Nx, grid.Ny) : r
+    end
     return T{eltype(grid)}(grid; resolved...)
 end
 

@@ -1,67 +1,74 @@
 # Helper functions for comparing FSM point simulations against observed snow depth.
 
+using CSV
+using DataFrames
 using NaNStatistics
 using CairoMakie
 CairoMakie.activate!()
 
-function load_mdw_data(filepath::String, layer::Int = 1)
-    if !isfile(filepath)
-        error("File not found: $filepath")
-    end
+# function load_mdw_data(filepath::String, layer::Int = 1)
+#     if !isfile(filepath)
+#         error("File not found: $filepath")
+#     end
 
-    mdw = matread(filepath)
+#     mdw = matread(filepath)
 
-    time = datenum2datetime.(mdw["MDW"]["MDW_data"][layer]["dobj"]["time"])
-    acro = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["acro"]
-    x = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["x"]
-    y = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["y"]
-    z = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["z"]
-    data = mdw["MDW"]["MDW_data"][layer]["dobj"]["data"][:, :, 1]
-    sel_stats = mdw["MDW"]["MDW_settings"][layer]["stats"]
-    nodata_value = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["nan_value"]
+#     time = datenum2datetime.(mdw["MDW"]["MDW_data"][layer]["dobj"]["time"])
+#     acro = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["acro"]
+#     x = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["x"]
+#     y = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["y"]
+#     z = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["z"]
+#     data = mdw["MDW"]["MDW_data"][layer]["dobj"]["data"][:, :, 1]
+#     sel_stats = mdw["MDW"]["MDW_settings"][layer]["stats"]
+#     nodata_value = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["nan_value"]
 
-    attributes = Dict(
-        "acro" => acro,
-        "sel_stats" => sel_stats,
-        "x" => x,
-        "y" => y,
-        "z" => z,
-        "nodata_value" => nodata_value,
-    )
+#     attributes = Dict(
+#         "acro" => acro,
+#         "sel_stats" => sel_stats,
+#         "x" => x,
+#         "y" => y,
+#         "z" => z,
+#         "nodata_value" => nodata_value,
+#     )
 
-    return (time = time, data = data, attributes = attributes)
+#     return (time = time, data = data, attributes = attributes)
+# end
+
+function load_csv_data(filepath::String)
+    obs = CSV.read(filepath, DataFrame; header =[:id, :time, :HTN, :type_nivo], dateformat = "yyyy-mm-dd-HH-MM")
+    return obs
+end
+
+function load_nc_data(filepath::String)
+    obs = Dataset(filepath)
+    return obs
 end
 
 function align_data(obs, sim)
 
+    # match stations
+    id = intersect(obs.id, sim.id)
+    i_obs = findall(in(id), obs.id)
+    i_sim = findall(in(id), sim.id)
+
     # match time
     times = sort(intersect(obs.time, sim.time))
-    i_obs = indexin(times, vec(obs.time))
-    i_sim = indexin(times, vec(sim.time))
+    t_obs = findall(in(times), obs.time)
+    t_sim = indexin(times, vec(sim.time))
 
-    # match stations
-    qc = vec(obs.attributes["sel_stats"])
-    obs_acro = vec(obs.attributes["acro"])
-    sim_acro = vec(sim.attributes["locations"]["acro"])
+    @infiltrate
 
-    obs_set = Set(obs_acro)
-    sim_set = Set(sim_acro)
-    acros = [a for a in qc if a in obs_set && a in sim_set]
-
-    j_obs = indexin(acros, obs_acro)
-    j_sim = indexin(acros, sim_acro)
+    # final rows 
+    row_obs = intersect(i_obs, t_obs)
+    if isempty(row_obs)
+        error("No observations available")
+    end
 
     # align data
-    obs_aligned = obs.data[i_obs, j_obs]
-    sim_aligned = sim.data[j_sim, 1, i_sim]
-    sim_aligned = permutedims(sim_aligned, [2 1])
+    obs_aligned = obs.HTN[row_obs]
+    sim_aligned = sim.data[t_sim, i_sim]
 
-    # handle missing data
-    i_missing = obs_aligned .== obs.attributes["nodata_value"]
-    obs_aligned[i_missing] .= NaN
-    sim_aligned[i_missing] .= NaN
-
-    altitudes = vec(obs.attributes["z"])[j_obs]
+    altitudes = vec(sim.alt)[i_sim]
 
     return (times = times, obs_aligned = obs_aligned, sim_aligned = sim_aligned, altitudes = altitudes)
 
