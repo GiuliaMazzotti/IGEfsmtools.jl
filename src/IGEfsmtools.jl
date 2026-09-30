@@ -12,15 +12,19 @@ using DataStructures
 using Statistics
 using Infiltrator
 
-include("init.jl")
-include("meteo_readers.jl")
-include("output.jl")
-include("run_simu.jl")
+include("model_settings.jl")
+include("setup.jl")
+include("prepare_landuse.jl")
+include("build_physics.jl")
 
-export settings_default
-export init_grid!, init_glacier_grid!, init_poste!, init_point!
-export make_saver, fill_saver, fill_daily_saver, grid_saver, pt_saver
-export read_meteo!
-export run_grid_simulation, run_grid_daily_simulation, run_glacier_grid_simulation, run_glacier_grid_daily_simulation, run_poste_simulation, run_point_simulation
+export settings
+export scheme, ElevationTuned, build_physics!
+export setup
+export prepare_landuse
+
+function __init__()
+    global settings = build_settings()
+    return nothing
+end
 
 end # module IGEfsmtools

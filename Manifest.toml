@@ -159,9 +159,9 @@ version = "0.13.1"
 
 [[deps.CommonDataModel]]
 deps = ["CFTime", "DataStructures", "Dates", "DiskArrays", "Preferences", "Printf", "Statistics"]
-git-tree-sha1 = "cd10f8b38725a6458dd971464daa5a751a67e6b0"
+git-tree-sha1 = "54d50f8a0a68ff4160564dfa09fc5de32465cfca"
 uuid = "1fbeeb36-5f17-413c-809b-666fb144f157"
-version = "0.4.2"
+version = "0.4.4"
 
 [[deps.Compat]]
 deps = ["TOML", "UUIDs"]
@@ -257,9 +257,9 @@ version = "1.9.1"
 
 [[deps.DiskArrays]]
 deps = ["ConstructionBase", "LRUCache", "Mmap", "OffsetArrays"]
-git-tree-sha1 = "5d18db9c4db59ffe13e5e37d065f9699f6c7b5ac"
+git-tree-sha1 = "8fd6be631dcc9cf987bbb3b173a363d8e2bfc2d7"
 uuid = "3c3547ce-8d99-4f5e-a174-61eb10b00ae3"
-version = "0.4.23"
+version = "0.4.24"
 
 [[deps.Distributed]]
 deps = ["Random", "Serialization", "Sockets"]
@@ -745,9 +745,9 @@ version = "2025.11.4"
 
 [[deps.NCDatasets]]
 deps = ["CFTime", "CommonDataModel", "DataStructures", "Dates", "DiskArrays", "NetCDF_jll", "NetworkOptions", "Printf"]
-git-tree-sha1 = "43e840d07d643a71171ade0f6109d911186bbe10"
+git-tree-sha1 = "5eb7747d10437f5acb2675c1f865ffa0353f3f9c"
 uuid = "85f8d34a-cbdd-5861-8df4-14fed0d494ab"
-version = "0.14.12"
+version = "0.14.15"
 
     [deps.NCDatasets.extensions]
     NCDatasetsMPIExt = "MPI"
