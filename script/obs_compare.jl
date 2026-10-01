@@ -3,6 +3,8 @@
 using CSV
 using DataFrames
 using NaNStatistics
+using Dates
+using Statistics
 using CairoMakie
 CairoMakie.activate!()
 
@@ -39,34 +41,57 @@ function load_csv_data(filepath::String)
     return obs
 end
 
-function load_nc_data(filepath::String)
-    obs = Dataset(filepath)
-    return obs
+function daily_mean(sim)
+    uniq_time = .!nonunique(DataFrame(t = sim.time)) 
+    sim_time = sim.time[uniq_time]
+    sim_data = sim.data[uniq_time, :]
+
+    days = unique(Date.(sim_time))
+    i_days = indexin(days, Date.(sim_time))
+
+    daily_data = Matrix{Union{Missing, Float64}}(missing, length(i_days), length(sim_data[1,:])) 
+    for d in eachindex(i_days)
+        if d != length(i_days)
+            daily_data[d, :] = mean(sim_data[i_days[d]:i_days[d+1]-1, :]; dims = 1)
+        else
+            daily_data[d, :] = mean(sim_data[i_days[d]:end, :]; dims = 1)
+        end
+    end
+
+    sim_daily = merge(sim, (time = Union{Missing, DateTime}[DateTime(d) + Hour(6) for d in days], data = daily_data,))
+    return sim_daily
 end
 
 function align_data(obs, sim)
 
     # match stations
-    id = intersect(obs.id, sim.id)
-    i_obs = findall(in(id), obs.id)
-    i_sim = findall(in(id), sim.id)
+    id = sort(intersect(obs.id, sim.id))
+    i_sim = indexin(id, sim.id)
+    i_dict = Dict(i => k for (k, i) in enumerate(id))
 
     # match time
-    times = sort(intersect(obs.time, sim.time))
-    t_obs = findall(in(times), obs.time)
+    times = sort(intersect(obs.time, collect(skipmissing(vec(sim.time)))))
     t_sim = indexin(times, vec(sim.time))
+    t_dict = Dict(t => k for (k, t) in enumerate(times))
 
-    @infiltrate
+    obs_sub = subset(obs,
+           :id   => ByRow(in(id)),
+           :time => ByRow(in(times)))
 
     # final rows 
-    row_obs = intersect(i_obs, t_obs)
-    if isempty(row_obs)
+    if isempty(obs_sub)
         error("No observations available")
     end
 
     # align data
-    obs_aligned = obs.HTN[row_obs]
+    obs_aligned = Matrix{Union{Missing, Float64}}(missing, length(times), length(id))
+    for r in eachrow(obs_sub)
+        obs_aligned[t_dict[r.time], i_dict[r.id]] = r.HTN
+    end
+
+    obs_aligned = coalesce.(obs_aligned, NaN)
     sim_aligned = sim.data[t_sim, i_sim]
+    # sim_aligned = sim.data
 
     altitudes = vec(sim.alt)[i_sim]
 
@@ -80,7 +105,7 @@ r2(sim, obs) = nancor(obs, sim)^2
 
 function plot_band_time_series(obs, sim)
 
-    times, obs_aligned, sim_aligned, altitudes = align_data(obs, sim)
+    times, obs_aligned, sim_aligned, altitudes = align_data(obs, daily_mean(sim))
 
     # altitude data
     altitude_bands = [(0, 3000), (0, 500), (500, 1000), (1000, 1500), (1500, 2000), (2000, 2500), (2500, 3000)]
@@ -95,7 +120,7 @@ function plot_band_time_series(obs, sim)
         sim_band = sim_aligned[:, mask]
         # obs is reported in cm, sim in m — convert obs to m for comparison
         obs_mean_b = vec(nanmean(obs_band; dims = 2)) / 100
-        sim_mean_b = vec(nanmean(sim_band; dims = 2))
+        sim_mean_b = Float64.(vec(nanmean(sim_band; dims = 2)))
 
         ax = Axis(f[b, 1]; ylabel = "HS [m]", title = "$(lo)–$(hi) m (n=$(count(mask)))")
         lines!(ax, times, obs_mean_b; label = "obs", color = :black, linewidth = 2.5)
@@ -124,27 +149,5 @@ function plot_band_time_series(obs, sim)
 
 end
 
-"""
-    subset_domain(dom_data, keep)
 
-Return a deep copy of the station-domain dict restricted to the station indices in `keep`.
-"""
-function subset_domain(dom_data::Dict, keep)
-    d = deepcopy(dom_data)
-    nstat = length(vec(d["attributes"]["vector"]["acro"]))
-
-    # top-level per-station landuse arrays: ["variable"]["data"] with first dim == nstat
-    for (_, v) in d
-        v isa Dict || continue
-        haskey(v, "data") || continue
-        arr = v["data"]
-        arr isa AbstractArray || continue
-        size(arr, 1) == nstat || continue
-        v["data"] = ndims(arr) == 1 ? arr[keep] : arr[keep, :]
-    end
-
-    # per-station label arrays under attributes["locations"] / attributes["vector"]
-    OSHDinternal.crop_fixture_attributes!(d["attributes"], keep, keep, nstat)
-
-    return d
-end
+## Other functions to plot (1 station, ...)

@@ -52,7 +52,7 @@ function preload_forcing(settings, Tf)
         PSurf     = meteo_file["PSurf"]
         Alt       = meteo_file["ZS"]
     end
-    
+
     settings_init["alt"] = Alt
 
     alloc() = zeros(Tf, nstations, ntimes)
@@ -137,10 +137,6 @@ settings_tuning = settings["TUNING"]
 
 landuse, Nx, Ny = prepare_landuse(settings_init)
 
-# met = MET{Tf}(Nx = Nx, Ny = Ny)
-# prec_multi = landuse["prec_multi"]["data"]
-# dt = FlexibleSnowModelOSHD.Parameters{Tf}().dt
-
 forcing, times = preload_forcing(settings_init, Tf)
 
 
@@ -151,6 +147,14 @@ settings_tuning["params"] = Dict("z0_snow" => ElevationTuned((1500, 2300), (0.2,
 
 snowdepth = run_simulation(forcing, landuse, times, settings_tuning, Tf, verbose)
 
+## Track the configurations
+include("tuning_track.jl")
+
+settings["TUNING"] = settings_tuning
+run_id, config_txt = set_run_id(settings)
+log_run("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/runs_tuning.md", run_id, settings)
+
+## Plot comparison
 include("obs_compare.jl")
 
 sim = (
@@ -163,6 +167,7 @@ sim = (
 obs = load_csv_data("C:/Users/navarrel/Documents/Workspace/Data/obs/nivo/OBS_1980_2025.csv")
 
 fig = plot_band_time_series(obs, sim)
-
-
+    
+@infiltrate
+save(("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/snowdepth_bands_$(run_id).png"), fig)
 
