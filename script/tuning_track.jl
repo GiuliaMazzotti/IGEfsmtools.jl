@@ -15,6 +15,8 @@ function md_config(io, x::AbstractDict, indent = 0)
         if v isa AbstractDict
             println(io, " "^indent, "- ", k, ":")
             md_config(io, v, indent + 2)
+        elseif v isa AbstractVector
+            println(io, " "^indent, "- ", k, ": [", join(("`$e`" for e in v), ", "), "]")
         else
             println(io, " "^indent, "- ", k, ": `", v, "`")
         end

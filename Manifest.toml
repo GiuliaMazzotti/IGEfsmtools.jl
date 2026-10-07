@@ -773,7 +773,7 @@ uuid = "a51ab1cf-af8e-5615-a023-bc2c838bba6b"
 version = "76.2.0+0"
 
 [[deps.IGEfsmtools]]
-deps = ["ArchGDAL", "CSV", "CommonDataModel", "DataFrames", "DataStructures", "Dates", "FlexibleSnowModelOSHD", "GeoDataFrames", "Infiltrator", "MAT", "NCDatasets", "NaNStatistics", "NetCDF", "PrettyTables", "ProgressMeter", "Statistics"]
+deps = ["ArchGDAL", "CSV", "CairoMakie", "CommonDataModel", "DataFrames", "DataStructures", "Dates", "FlexibleSnowModelOSHD", "GeoDataFrames", "Infiltrator", "MAT", "NCDatasets", "NaNStatistics", "NetCDF", "PrettyTables", "ProgressMeter", "Statistics"]
 path = "."
 uuid = "e47889e2-3783-4ad8-ac93-24e8ff03a6af"
 version = "0.1.0"

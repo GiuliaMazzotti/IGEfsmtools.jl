@@ -5,6 +5,8 @@ using FlexibleSnowModelOSHD
 using Infiltrator
 using NCDatasets
 using ProgressMeter
+using ArchGDAL
+using DataFrames
 
 
 """
@@ -14,6 +16,22 @@ using ProgressMeter
 Run the operational meteo reader (`read_input!`) once over all time steps and snapshot the
 fully-processed forcing for the selected stations `keep`.
 """
+function get_station_name(list_id, shapefile_path)
+    station_shapefile = ArchGDAL.read(shapefile_path)
+    shapefile = ArchGDAL.getlayer(station_shapefile, 0) |> DataFrame 
+    shp = shapefile[in.(shapefile.ID, Ref(list_id)),:]
+    sort!(shp, [:ID])
+    return vec(shp.Name)
+end
+
+function get_station_massif(list_id, shapefile_path)
+    station_shapefile = ArchGDAL.read(shapefile_path)
+    shapefile = ArchGDAL.getlayer(station_shapefile, 0) |> DataFrame 
+    shp = shapefile[in.(shapefile.ID, Ref(list_id)),:]
+    sort!(shp, [:ID])
+    return vec(shp.massif_num)
+end
+
 function preload_forcing(settings, Tf)
 
     meteo_file = Dataset(settings["file_path"]) 
@@ -53,7 +71,9 @@ function preload_forcing(settings, Tf)
         Alt       = meteo_file["ZS"]
     end
 
-    settings_init["alt"] = Alt
+    settings["alt"] = vec(Alt)
+    settings["name"] = get_station_name(settings["list_id"], settings["shapefile"])
+    settings["massif"] = get_station_massif(settings["list_id"], settings["shapefile"])
 
     alloc() = zeros(Tf, nstations, ntimes)
     forcing = (
@@ -67,7 +87,7 @@ function preload_forcing(settings, Tf)
     forcing.Sdird[:, :] = DIR_SW
     forcing.LW[:, :] = LWdown
     forcing.Rf[:, :] = Rainf 
-    forcing.Sf[:, :] = Snowf
+    forcing.Sf[:, :] = Snowf 
     forcing.Ta[:, :] = Tair
     forcing.RH[:, :] = Qair
     forcing.Ua[:, :] = Wind
@@ -91,6 +111,7 @@ function run_simulation(forcing, landuse, times, settings, Tf, verbose = true)
     physics = get(settings, "physics", Dict())
     schemes = (; (Symbol(k) => v for (k, v) in physics)...)
     fsm = FSM(grid, landuse; schemes...)
+    apply_params!(fsm, settings["params"])
     met = MET{Tf}(Nx = nstat)
 
     # Pre-allocate results
@@ -106,7 +127,7 @@ function run_simulation(forcing, landuse, times, settings, Tf, verbose = true)
         met.Sdird[:, :] .= forcing.Sdird[:, i]
         met.LW[:, :] .= forcing.LW[:, i]
         met.Rf[:, :] .= forcing.Rf[:, i]
-        met.Sf[:, :] .= forcing.Sf[:, i]
+        met.Sf[:, :] .= forcing.Sf[:, i] .*landuse["prec_multi"]["data"]
         met.Ta[:, :] .= forcing.Ta[:, i]
         met.RH[:, :] .= forcing.RH[:, i]
         met.Ua[:, :] .= forcing.Ua[:, i]
@@ -139,11 +160,10 @@ landuse, Nx, Ny = prepare_landuse(settings_init)
 
 forcing, times = preload_forcing(settings_init, Tf)
 
-
 ## Tuning section
 
-settings_tuning["physics"]["snow_albedo"] = scheme(PrognosticAlbedo; ALRADT= false, adm = 130, adc = ElevationTuned((1500, 2300), (3000, 6000)))
-settings_tuning["params"] = Dict("z0_snow" => ElevationTuned((1500, 2300), (0.2, 0.01)))
+#settings_tuning["physics"]["snow_albedo"] = scheme(PrognosticAlbedo; ALRADT= false, adm = 130, adc = ElevationTuned((1500, 2300), (3000, 6000)))
+settings_tuning["params"] = Dict("Tprof" => 273.15) #, "z0_snow" => 0.05 #Dict("z0_snow" => ElevationTuned((1500, 2300), (0.2, 0.01)))
 
 snowdepth = run_simulation(forcing, landuse, times, settings_tuning, Tf, verbose)
 
@@ -151,6 +171,7 @@ snowdepth = run_simulation(forcing, landuse, times, settings_tuning, Tf, verbose
 include("tuning_track.jl")
 
 settings["TUNING"] = settings_tuning
+
 run_id, config_txt = set_run_id(settings)
 log_run("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/runs_tuning.md", run_id, settings)
 
@@ -161,13 +182,17 @@ sim = (
         time = collect(times),
         data = snowdepth,
         id = settings_init["list_id"],
-        alt = settings_init["alt"]
+        alt = settings_init["alt"],
+        name = settings_init["name"],
+        massif = settings_init["massif"]
        )
 
 obs = load_csv_data("C:/Users/navarrel/Documents/Workspace/Data/obs/nivo/OBS_1980_2025.csv")
 
 fig = plot_band_time_series(obs, sim)
+# fig2 = plot_band_massif_time_series(obs, sim)
+# fig = plot_single_time_series(obs, sim)
     
-@infiltrate
-save(("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/snowdepth_bands_$(run_id).png"), fig)
+save(("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/snowdepth_band_$(run_id).png"), fig)
+# save(("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/snowdepth_band_massif_$(run_id).png"), fig2)
 

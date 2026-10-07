@@ -20,7 +20,7 @@ function prepare_landuse(settings::Dict)
     lus["slopemu"] = Dict("data" => fill(1.0, Nx))
     lus["xi"] = Dict("data" => fill(1.0, Nx))
     lus["Ld"] = Dict("data" => fill(1.0, Nx))
-    lus["prec_multi"] = Dict("data" => fill(1.0, Nx))
+    lus["prec_multi"] = Dict("data" => precip_cor(build_precip(settings["prec_multi"], settings["precision"]), shapefile.Elevation[:])) #fill(1.0, Nx) .*settings["prec_multi"] #settings["prec_multi"]{settings["precision"]}()
 
     return lus, Nx, Ny
 end
