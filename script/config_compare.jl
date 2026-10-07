@@ -28,5 +28,3 @@ end
 
 save(settings_path["boxplot"],      boxplot_metric(settings_path["metrics"], :rmse))
 save(settings_path["boxplot_band"], boxplot_metric(settings_path["metrics"], :rmse; by_band = true))
-# save("bias_by_config.png",      boxplot_metric(metrics, :bias; by_band = true))
-# save("r2_by_config.png",        boxplot_metric(metrics, :r2))

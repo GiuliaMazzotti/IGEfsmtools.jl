@@ -2,25 +2,6 @@ abstract type AbstractCorrection{Tf <: Real} end
 
 abstract type AbstractPrecip{Tf} <: AbstractCorrection{Tf} end
 
-# struct LinearPrecip{Tf} <: AbstractPrecip{Tf} end
-
-# struct LogPrecip{Tf} <: AbstractPrecip{Tf} end
-
-# struct ExpPrecip{Tf} <: AbstractPrecip{Tf} end
-
-
-# @inline function precip_cor(::LinearPrecip{Tf}, elevation, mult::Tf = Tf(-0.0002), cst::Tf = Tf(1.5)) where {Tf}
-#     return Tf.(elevation) .* mult .+ cst
-# end
-
-# @inline function precip_cor(::LogPrecip{Tf}, elevation, mult1::Tf = Tf(0.008), mult2::Tf = Tf(-0.35), cst::Tf = Tf(2)) where {Tf}
-#     return log.(max.(Tf.(elevation), one(Tf)) .* mult1) .* mult2 .+ cst
-# end
-
-# @inline function precip_cor(::ExpPrecip{Tf}, elevation, mult1::Tf = Tf(-0.002), mult2::Tf = Tf(2.5), cst::Tf = Tf(0.9)) where {Tf}
-#     return mult2 .* exp.(Tf.(elevation) .* mult1) .+ cst
-# end
-
 
 Base.@kwdef struct LinearPrecip{Tf} <: AbstractPrecip{Tf}
     mult::Tf = -0.0002

@@ -1,16 +1,3 @@
-# const PHYSICS_DEFAULT = Dict(
-#     "snow_albedo" => ::PrognosticAlbedo, 
-#     "land_cover" => ::OpenCover, 
-#     "substrate" => ::SoilSubstrate, 
-#     "conductivity" => ::DensityConductivity, 
-#     "compaction" => ::AgeCompaction, 
-#     "hydrology" => ::DensityBucketHydrology,
-#     "fresh_snow_density" => ::ElevationFreshSnowDensity, 
-#     "layering" => ::OriginalLayering, 
-#     "snow_fraction" => ::PointSnowFraction,
-# )
-
-
 function build_settings()
     return OrderedDict(
         "INIT" => Dict(

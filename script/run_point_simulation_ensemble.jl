@@ -179,48 +179,9 @@ function run_comparison(settings, obs, runs, Tf; verbose = true)
 
     metrics = reduce(vcat, all_metrics)
     # CSV.write("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/precip/metrics_precip.csv", metrics; header = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"])
-    CSV.write("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/z0/metrics_z0.csv", metrics; header = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"], append=true)
+    CSV.write(settings_path["metrics"], metrics; header = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"], append=true)
     return sims, metrics
 end
-
-# function run_comparison(settings, obs, runs, Tf; verbose = true)
-#     f = Figure(size = (1200, 2000))
-#     state = (axes = Axis[], stats = GridLayout[])
-
-#     all_metrics = DataFrame[] 
-
-#     forcing, times = preload_forcing(settings["INIT"], Tf)
-
-#     for (k, (name, overrides)) in enumerate(runs)
-#         s = apply_overrides(settings, overrides)
-#         settings_init, settings_tuning = s["INIT"], s["TUNING"]
-
-#         landuse, Nx, Ny = prepare_landuse(settings_init)
-#         snowdepth = run_simulation(forcing, landuse, times, settings_tuning, Tf, verbose)
-
-#         run_id, _ = set_run_id(s)
-#         log_run("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/runs_tuning.md", run_id, s)
-
-#         sim = (
-#             time = collect(times), 
-#             data = snowdepth, 
-#             id = settings_init["list_id"],
-#             alt = settings_init["alt"], 
-#             name = settings_init["name"],
-#             massif = settings_init["massif"]
-#             )
-        
-#         push!(all_metrics, station_metrics(obs, sim, name, run_id))
-
-#         plot_band_loop_time_series!(f, state, obs, sim, name, k)
-#     end
-
-#     finalize_band_figure!(f, state)
-#     metrics = reduce(vcat, all_metrics)
-#     # CSV.write("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/precip/metrics_precip.csv", metrics; header = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"])
-#     CSV.write("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/z0/metrics_z0.csv", metrics; header = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"], append=true)
-#     return f, metrics
-# end
 
 
 ## Setup section
@@ -281,22 +242,18 @@ sims, metrics = run_comparison(settings, obs, runs, Float32)
 
 # altitude bands, as before
 ALT_BANDS = [(0, 3000), (0, 500), (500, 1000), (1000, 1500), (1500, 2000), (2000, 2500), (2500, 3000)]
-save("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/z0/snowdepth_band_loop_z0.png", plot_runs(obs, sims; groups = band_groups(ALT_BANDS)))
+save(settings_path["alt_band"], plot_runs(obs, sims; groups = band_groups(ALT_BANDS)))
 
 # a few single stations in one figure
 names = station_names(last(first(sims)))
 ids = sort(settings["INIT"]["list_id"])                              # your station ids
-save("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/z0/snowdepth_stations_z0.png",
+save(settings_path["multi_station"],
      plot_runs(obs, sims; groups = station_groups(ids, names), fsize = (1200, 300 * length(ids))))
 
 # one figure per station, without rerunning the model
 for id in ids
     f = plot_runs(obs, sims; groups = station_groups([id], names), fsize = (1200, 500))
-    save("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/z0/station_$(id)_z0.png", f)
+    save(settings_path["single_station"]*"$(id).png", f)
 end
-
-# f, metrics = run_comparison(settings, obs, runs, Float32)
-# save("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/precip/snowdepth_band_loop_precip.png", f)
-# save("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/z0/snowdepth_band_loop_z0.png", f)
 
 include("config_compare.jl")
