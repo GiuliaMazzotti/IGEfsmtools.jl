@@ -172,11 +172,12 @@ function plot_runs(obs, sims; groups, fsize = (1200, 2000))
                 ax = Axis(f[g, 1]; ylabel = "HS [m]", title = n > 1 ? "$title (n=$n)" : title)
                 lines!(ax, al.times, obs_mean; label = "obs", color = :black, linewidth = 2.5)
                 push!(axes, ax)
-                push!(stats, GridLayout(f[g, 2]))
+                push!(stats, GridLayout(f[g, 2]; tellheight = false, valign = :top))
             end
             lines!(axes[g], al.times, sim_mean; label = label, color = color)
 
             sim_g[isnan.(obs_g)] .= NaN
+            sim_mean = Float64.(vec(nanmean(sim_g; dims = 2)))
             stat_text = "$(label)\n" *
                 "RMSE: $(round(rmse(sim_mean, obs_mean), digits = 3)) m\n" *
                 "Bias: $(round(bias(sim_mean, obs_mean), digits = 3)) m\n" *

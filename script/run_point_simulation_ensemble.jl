@@ -32,6 +32,34 @@ function get_station_massif(list_id, shapefile_path)
     return vec(shp.massif_num)
 end
 
+const METRIC_COLS = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"]
+
+function append_metrics(path, new)
+    new = select(new, METRIC_COLS)
+
+    # new or empty file: write with header
+    if !isfile(path) || filesize(path) == 0
+        CSV.write(path, new)
+        return new
+    end
+
+    # a file without a header line would have its first data row read as column names
+    first_line = readline(path)
+    if first_line != join(METRIC_COLS, ",")
+        error("$path has no valid header line (first line: \"$first_line\"). " *
+              "Add the header or delete the file.")
+    end
+
+    old = CSV.read(path, DataFrame; types = Dict(:run_id => String))
+    new = filter(:run_id => id -> id ∉ Set(old.run_id), new)      # skip runs already in the file
+    if nrow(new) == 0
+        @info "All runs already in $(basename(path)), nothing appended"
+        return old
+    end
+    CSV.write(path, new; append = true, writeheader = false)
+    return vcat(old, new)
+end
+
 function preload_forcing(settings, Tf)
 
     meteo_file = Dataset(settings["file_path"]) 
@@ -72,8 +100,8 @@ function preload_forcing(settings, Tf)
     end
 
     settings["alt"] = vec(Alt)
-    settings["name"] = get_station_name(settings["list_id"], settings["shapefile"])
-    settings["massif"] = get_station_massif(settings["list_id"], settings["shapefile"])
+    settings["name"] = get_station_name(sort(settings["list_id"]), settings["shapefile"])
+    settings["massif"] = get_station_massif(sort(settings["list_id"]), settings["shapefile"])
 
     alloc() = zeros(Tf, nstations, ntimes)
     forcing = (
@@ -178,8 +206,7 @@ function run_comparison(settings, obs, runs, Tf; verbose = true)
     end
 
     metrics = reduce(vcat, all_metrics)
-    # CSV.write("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/precip/metrics_precip.csv", metrics; header = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"])
-    CSV.write(settings_path["metrics"], metrics; header = ["config", "run_id", "id", "altitude", "massif", "band_lo", "n_days", "rmse", "bias", "r2"], append=true)
+    metrics = append_metrics(settings_path["metrics"], metrics)
     return sims, metrics
 end
 
@@ -196,24 +223,31 @@ include("tuning_track.jl")
 runs = [
     # # precipitation settings
     # "raw"    => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 1)],
-    # "linear" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = -0.000215, cst = 1.52)],
+    # "linear1" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0.00014, cst = 0.68)],
+    # "linear2" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0.00023, cst = 0.4)],
+    # "linear3" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 4.65*10^(-5), cst = 0.96 )],
     # "log"    => [("INIT", "prec_multi") => scheme(LogbisPrecip; mult1 = -0.0156, mult2 = 0.42, cst = 50)],
     # "tanh"   => [("INIT", "prec_multi") => scheme(TanhPrecip;)],
 
-    # z0 settings
-    "raw" => [],
-    "z0.001" => [("TUNING", "params", "z0_snow") => 0.001],
-    "z0.005" => [("TUNING", "params", "z0_snow") => 0.005],
+    # # z0 settings
+    # "z0.002" => [],
+    # "z0.0002" => [("TUNING", "params", "z0_snow") => 0.0002],
+    # "z0.000002" => [("TUNING", "params", "z0_snow") =>  0.000002],
+    # "z0.02" => [("TUNING", "params", "z0_snow") =>  0.02],
 
-    # # other settings, alone or combined
-    # "tanh + albedo" => [
-    #     ("INIT", "prec_multi") => scheme(TanhPrecip;),
-    #     ("TUNING", "physics", "snow_albedo") => scheme(PrognosticAlbedo; ALRADT = false, adm = 130,
-    #                                                      adc = ElevationTuned((1500, 2300), (3000, 6000))),
+    # # albedo settings
+    "progn" => [("TUNING", "physics", "snow_albedo") => scheme(PrognosticAlbedo;)],   #ALRADT = false, adm = 130, adc = ElevationTuned((1500, 2300), (3000, 6000))
+    "diagn" => [("TUNING", "physics", "snow_albedo") => scheme(DiagnosticAlbedo;)],
+    "decay" => [("TUNING", "physics", "snow_albedo") => scheme(DecayAlbedo;)],
+
+    # # combined settings
+    # "lin3 + z0.2" => [
+    #     ("INIT", "prec_multi") => scheme(LinearPrecip; mult = 4.65*10^(-5), cst = 0.96 ),
+    #     ("TUNING", "params", "z0_snow") =>  0.2,
     # ],
-    # "tanh + z0" => [
-    #     ("INIT", "prec_multi") => scheme(TanhPrecip;),
-    #     ("TUNING", "params", "z0_snow") => ElevationTuned((1500, 2300), (0.2, 0.01)),
+    # "lin3 + z0lin" => [
+    #     ("INIT", "prec_multi") => scheme(LinearPrecip; mult = 4.65*10^(-5), cst = 0.96 ),
+    #     ("TUNING", "params", "z0_snow") => ElevationTuned((1000, 2500), (0.5, 0.02)),  #scheme(LinearZ0;)
     # ],
 ]
 
@@ -245,15 +279,17 @@ ALT_BANDS = [(0, 3000), (0, 500), (500, 1000), (1000, 1500), (1500, 2000), (2000
 save(settings_path["alt_band"], plot_runs(obs, sims; groups = band_groups(ALT_BANDS)))
 
 # a few single stations in one figure
-names = station_names(last(first(sims)))
-ids = sort(settings["INIT"]["list_id"])                              # your station ids
-save(settings_path["multi_station"],
-     plot_runs(obs, sims; groups = station_groups(ids, names), fsize = (1200, 300 * length(ids))))
+# names = station_names(last(first(sims)))
+# ids = sort(settings["INIT"]["list_id"])                              # your station ids
+# save(settings_path["multi_station"],
+#      plot_runs(obs, sims; groups = station_groups(ids, names), fsize = (1200, 300 * length(ids))))
 
 # one figure per station, without rerunning the model
-for id in ids
-    f = plot_runs(obs, sims; groups = station_groups([id], names), fsize = (1200, 500))
-    save(settings_path["single_station"]*"$(id).png", f)
-end
+# names = station_names(last(first(sims)))
+# ids = sort(settings["INIT"]["list_id"]) 
+# for id in ids
+#     f = plot_runs(obs, sims; groups = station_groups([id], names), fsize = (1200, 500))
+#     save(settings_path["single_station"]*"$(id).png", f)
+# end
 
-include("config_compare.jl")
+# include("config_compare.jl")

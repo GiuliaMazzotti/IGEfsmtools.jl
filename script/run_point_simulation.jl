@@ -176,12 +176,12 @@ run_id, config_txt = set_run_id(settings)
 log_run("C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/runs_tuning.md", run_id, settings)
 
 ## Plot comparison
-include("obs_compare.jl")
+include("obs_compare_old.jl")
 
 sim = (
         time = collect(times),
         data = snowdepth,
-        id = settings_init["list_id"],
+        id = sort(settings_init["list_id"]),
         alt = settings_init["alt"],
         name = settings_init["name"],
         massif = settings_init["massif"]

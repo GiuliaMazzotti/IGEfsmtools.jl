@@ -2,7 +2,6 @@ abstract type AbstractCorrection{Tf <: Real} end
 
 abstract type AbstractPrecip{Tf} <: AbstractCorrection{Tf} end
 
-
 Base.@kwdef struct LinearPrecip{Tf} <: AbstractPrecip{Tf}
     mult::Tf = -0.0002
     cst::Tf = 1.5
