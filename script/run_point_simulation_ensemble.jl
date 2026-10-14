@@ -215,14 +215,14 @@ end
 
 Tf = Float32
 verbose = true
-include("obs_compare.jl")
+include("obs_crocus_compare.jl")
 include("tuning_track.jl")
 
 ## Settings of tuning
 
 runs = [
     # # precipitation settings
-    # "raw"    => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 1)],
+    "raw"    => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 1)],
     # "linear1" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0.00014, cst = 0.68)],
     # "linear2" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0.00023, cst = 0.4)],
     # "linear3" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 4.65*10^(-5), cst = 0.96 )],
@@ -236,9 +236,9 @@ runs = [
     # "z0.02" => [("TUNING", "params", "z0_snow") =>  0.02],
 
     # # albedo settings
-    "progn" => [("TUNING", "physics", "snow_albedo") => scheme(PrognosticAlbedo;)],   #ALRADT = false, adm = 130, adc = ElevationTuned((1500, 2300), (3000, 6000))
-    "diagn" => [("TUNING", "physics", "snow_albedo") => scheme(DiagnosticAlbedo;)],
-    "decay" => [("TUNING", "physics", "snow_albedo") => scheme(DecayAlbedo;)],
+    # "progn" => [("TUNING", "physics", "snow_albedo") => scheme(PrognosticAlbedo;)],   #ALRADT = false, adm = 130, adc = ElevationTuned((1500, 2300), (3000, 6000))
+    # "diagn" => [("TUNING", "physics", "snow_albedo") => scheme(DiagnosticAlbedo;)],
+    # "decay" => [("TUNING", "physics", "snow_albedo") => scheme(DecayAlbedo;)],
 
     # # combined settings
     # "lin3 + z0.2" => [
@@ -271,12 +271,23 @@ runs = [
 
 ## Run simulations
 obs = load_csv_data("C:/Users/navarrel/Documents/Workspace/Data/obs/nivo/OBS_1980_2025.csv")
+crocus = Dataset("C:/Users/navarrel/Documents/Workspace/Data/s2m/postes/pro/PRO_1958080106_2024080106.nc")
+t_start = DateTime(2018, 8, 1, 5)
+cro_time_mask = (crocus["time"][:].>t_start)
+cro_station_mask = findall(in(sort(settings["INIT"]["list_id"])), crocus["station"][:]) 
+cro = (
+        time = collect(crocus["time"][cro_time_mask]), 
+        data = permutedims(collect(crocus["DSN_T_ISBA"][cro_station_mask,cro_time_mask])), 
+        id = sort(settings["INIT"]["list_id"]),
+        alt = collect(crocus["ZS"][cro_station_mask]),
+        )
 
 sims, metrics = run_comparison(settings, obs, runs, Float32)
 
 # altitude bands, as before
 ALT_BANDS = [(0, 3000), (0, 500), (500, 1000), (1000, 1500), (1500, 2000), (2000, 2500), (2500, 3000)]
-save(settings_path["alt_band"], plot_runs(obs, sims; groups = band_groups(ALT_BANDS)))
+# save(settings_path["alt_band"], plot_runs(obs, sims; groups = band_groups(ALT_BANDS)))
+save(settings_path["alt_band"], plot_runs(obs, sims, cro; groups = band_groups(ALT_BANDS)))
 
 # a few single stations in one figure
 # names = station_names(last(first(sims)))

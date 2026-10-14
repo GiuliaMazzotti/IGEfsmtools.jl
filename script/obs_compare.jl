@@ -8,33 +8,33 @@ using Statistics
 using CairoMakie
 CairoMakie.activate!()
 
-# function load_mdw_data(filepath::String, layer::Int = 1)
-#     if !isfile(filepath)
-#         error("File not found: $filepath")
-#     end
+function load_mdw_data(filepath::String, layer::Int = 1)
+    if !isfile(filepath)
+        error("File not found: $filepath")
+    end
 
-#     mdw = matread(filepath)
+    mdw = matread(filepath)
 
-#     time = datenum2datetime.(mdw["MDW"]["MDW_data"][layer]["dobj"]["time"])
-#     acro = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["acro"]
-#     x = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["x"]
-#     y = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["y"]
-#     z = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["z"]
-#     data = mdw["MDW"]["MDW_data"][layer]["dobj"]["data"][:, :, 1]
-#     sel_stats = mdw["MDW"]["MDW_settings"][layer]["stats"]
-#     nodata_value = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["nan_value"]
+    time = datenum2datetime.(mdw["MDW"]["MDW_data"][layer]["dobj"]["time"])
+    acro = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["acro"]
+    x = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["x"]
+    y = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["y"]
+    z = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["z"]
+    data = mdw["MDW"]["MDW_data"][layer]["dobj"]["data"][:, :, 1]
+    sel_stats = mdw["MDW"]["MDW_settings"][layer]["stats"]
+    nodata_value = mdw["MDW"]["MDW_data"][layer]["dobj"]["data_info"]["nan_value"]
 
-#     attributes = Dict(
-#         "acro" => acro,
-#         "sel_stats" => sel_stats,
-#         "x" => x,
-#         "y" => y,
-#         "z" => z,
-#         "nodata_value" => nodata_value,
-#     )
+    attributes = Dict(
+        "acro" => acro,
+        "sel_stats" => sel_stats,
+        "x" => x,
+        "y" => y,
+        "z" => z,
+        "nodata_value" => nodata_value,
+    )
 
-#     return (time = time, data = data, attributes = attributes)
-# end
+    return (time = time, data = data, attributes = attributes)
+end
 
 function load_csv_data(filepath::String)
     obs = CSV.read(filepath, DataFrame; header =[:id, :time, :HTN, :type_nivo], dateformat = "yyyy-mm-dd-HH-MM")
