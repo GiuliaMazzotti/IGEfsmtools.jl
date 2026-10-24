@@ -26,51 +26,6 @@ function boxplot_metric(metrics_path, col::Symbol; by_band = false, verbose=true
     return f
 end
 
-# function heatmap_metrics(metrics_path, col::Symbol; by_band = false)
-#     metrics = CSV.read(metrics_path, DataFrame)
-
-#     df = filter(r -> !ismissing(r[col]) && !isnan(r[col]), metrics)
-
-#     parts = split.(df.config, "|")
-#     df.p1 = strip.(first.(parts))
-#     df.p2 = strip.(last.(parts))
-
-#     agg = combine(groupby(df, [:p1, :p2]), col => mean => col)
-
-#     xs = sort(unique(agg.p2))
-#     ys = sort(unique(agg.p1))
-
-#     Z = fill(NaN, length(xs), length(ys))
-#     for r in eachrow(agg)
-#         Z[findfirst(==(r.p2), xs), findfirst(==(r.p1), ys)] = r[col]
-#     end
-
-#     label = uppercase(String(col))          # "RMSE", "BIAS", "R2"
-#     signed = col == :bias                   # signed metric -> diverging colormap centred on 0
-
-#     fig = Figure(size = (700, 700))
-#     ax = Axis(fig[1, 1]; ylabel = "precip", title = label,
-#               xticks = (1:length(xs), xs), yticks = (1:length(ys), string.(ys)),
-#               xticklabelrotation = π/4)
-
-#     if signed
-#         m = maximum(abs, filter(!isnan, Z))
-#         hm = heatmap!(ax, 1:length(xs), 1:length(ys), Z;
-#                       colormap = :RdBu, colorrange = (-m, m), nan_color = :lightgray)
-#     else
-#         hm = heatmap!(ax, 1:length(xs), 1:length(ys), Z;
-#                       colormap = :viridis, nan_color = :lightgray)
-#     end
-#     Colorbar(fig[1, 2], hm; label = label)
-
-#     for i in eachindex(xs), j in eachindex(ys)
-#         isnan(Z[i, j]) && continue
-#         text!(ax, i, j; text = string(round(Z[i, j]; digits = 3)),
-#               align = (:center, :center), color = signed ? :black : :white)
-#     end
-#     return fig
-# end
-
 function heatmap_metrics(metrics_path, col::Symbol; groups = nothing, ncols = 3,
                          panel = (480, 420))
     metrics = CSV.read(metrics_path, DataFrame)

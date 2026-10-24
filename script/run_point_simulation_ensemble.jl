@@ -248,41 +248,6 @@ include("tuning_track.jl")
 # **************************************************************************************************************
 # Settings of tuning
 # **************************************************************************************************************
-# runs = [
-#     "raw"    => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 1)],
-# ********************************
-# Precipitation settings
-    # "linear1" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0.00014, cst = 0.68)],
-    # "linear2" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0.00023, cst = 0.4)],
-    # "linear3" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 4.65*10^(-5), cst = 0.96 )],
-    # "log"    => [("INIT", "prec_multi") => scheme(LogbisPrecip; mult1 = -0.0156, mult2 = 0.42, cst = 50)],
-    # "tanh"   => [("INIT", "prec_multi") => scheme(TanhPrecip;)],
-
-# ********************************
-# z0 settings
-    # "z0.002" => [],
-    # "z0.0002" => [("TUNING", "params", "z0_snow") => 0.0002],
-    # "z0.000002" => [("TUNING", "params", "z0_snow") =>  0.000002],
-    # "z0.02" => [("TUNING", "params", "z0_snow") =>  0.02],
-
-# ********************************
-# Albedo settings
-    # "progn" => [("TUNING", "physics", "snow_albedo") => scheme(PrognosticAlbedo;)],   #ALRADT = false, adm = 130, adc = ElevationTuned((1500, 2300), (3000, 6000))
-    # "diagn" => [("TUNING", "physics", "snow_albedo") => scheme(DiagnosticAlbedo;)],
-    # "decay" => [("TUNING", "physics", "snow_albedo") => scheme(DecayAlbedo;)],
-
-# ********************************
-# Combined settings
-    # "lin3 + z0.2" => [
-    #     ("INIT", "prec_multi") => scheme(LinearPrecip; mult = 4.65*10^(-5), cst = 0.96 ),
-    #     ("TUNING", "params", "z0_snow") =>  0.2,
-    # ],
-    # "lin3 + z0lin" => [
-    #     ("INIT", "prec_multi") => scheme(LinearPrecip; mult = 4.65*10^(-5), cst = 0.96 ),
-    #     ("TUNING", "params", "z0_snow") => ElevationTuned((1000, 2500), (0.5, 0.02)),  #scheme(LinearZ0;)
-    # ],
-# ]
-
 # ********************************
 # Ensemble of tuning
     product_runs(groups...) = vec([
