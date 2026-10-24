@@ -2,9 +2,13 @@ abstract type AbstractCorrection{Tf <: Real} end
 
 abstract type AbstractPrecip{Tf} <: AbstractCorrection{Tf} end
 
+Base.@kwdef struct MaxBiasPrecip{Tf} <: AbstractPrecip{Tf}
+    cst::Tf = 1
+end
+
 Base.@kwdef struct LinearPrecip{Tf} <: AbstractPrecip{Tf}
-    mult::Tf = -0.0002
-    cst::Tf = 1.5
+    mult::Tf = 0.00014
+    cst::Tf = 0.68
 end
 
 Base.@kwdef struct LogPrecip{Tf} <: AbstractPrecip{Tf}
@@ -23,6 +27,7 @@ Base.@kwdef struct ExpPrecip{Tf} <: AbstractPrecip{Tf}
     mult1::Tf = -0.002
     mult2::Tf = 2.5
     cst::Tf = 0.9
+    
 end
 
 Base.@kwdef struct TanhPrecip{Tf} <: AbstractPrecip{Tf}
@@ -32,6 +37,7 @@ Base.@kwdef struct TanhPrecip{Tf} <: AbstractPrecip{Tf}
     cst::Tf = 1.116
 end
 
+@inline precip_cor(c::MaxBiasPrecip{Tf}, bias_list) where {Tf} = Tf.(bias_list .*(-1)) .+ c.cst
 
 @inline precip_cor(c::LinearPrecip{Tf}, elevation) where {Tf} = Tf.(elevation) .* c.mult .+ c.cst
 
@@ -41,7 +47,7 @@ end
 @inline precip_cor(c::LogbisPrecip{Tf}, elevation) where {Tf} =
     log.(max.(Tf.(elevation), one(Tf)) .* c.mult1 .+ c.cst) .* c.mult2
 
-@inline precip_cor(c::ExpPrecip{Tf}, elevation) where {Tf} = c.mult2 .* exp.(Tf.(elevation) .* c.mult1) .+ c.cst
+@inline precip_cor(c::ExpPrecip{Tf}, elevation) where {Tf} = 1 ./ (c.mult2 .* exp.(Tf.(elevation) .* c.mult1) .+ c.cst)
 
 @inline precip_cor(c::TanhPrecip{Tf}, elevation) where {Tf} =
     c.mult2 .* tanh.((Tf.(elevation) .- c.alt0) .* c.mult1) .+ c.cst

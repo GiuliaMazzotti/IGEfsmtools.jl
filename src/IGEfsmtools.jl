@@ -21,7 +21,7 @@ include("prepare_landuse.jl")
 
 export scheme, ElevationTuned, build_physics!
 export build_precip
-export AbstractCorrection, AbstractPrecip, LinearPrecip, LogPrecip, LogbisPrecip, ExpPrecip, TanhPrecip, precip_cor
+export AbstractCorrection, AbstractPrecip, MaxBiasPrecip, LinearPrecip, LogPrecip, LogbisPrecip, ExpPrecip, TanhPrecip,  precip_cor
 export build_settings, settings, build_path_settings, settings_path
 export set_param!, apply_params!
 export set_nested!, apply_overrides
