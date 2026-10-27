@@ -8,9 +8,12 @@ using Statistics
 using CairoMakie
 CairoMakie.activate!()
 
+include("metrics.jl")
 
 # **************************************
 # Load obs
+# ********************************
+# **** Datetime management ****
 function datenum2datetime(matlab_datenum)
     # MATLAB datenum for Unix epoch (Jan 1, 1970) is 719529
     unix_offset = 719529
@@ -27,6 +30,7 @@ function datetime2datenum(dt::DateTime)
     return unix_offset + days_since_unix
 end
 
+# **** Loading ****
 function load_mdw_data(filepath::String, layer::Int = 1)
     if !isfile(filepath)
         error("File not found: $filepath")
@@ -63,6 +67,7 @@ end
 
 # **************************************
 # Load sims
+# **************************************
 function load_sim(path)
     NCDataset(path) do ds
         (
@@ -95,6 +100,7 @@ end
 
 # **************************************
 # Treats data
+# **************************************
 function daily_mean(sim)
     uniq_time = .!nonunique(DataFrame(t = sim.time)) 
     sim_time = sim.time[uniq_time]
@@ -116,6 +122,7 @@ function daily_mean(sim)
     return sim_daily
 end
 
+# **** Max HS computing ****
 function max_hs(times, data)
     yr    = Dates.year.(times)
     years = unique(yr)
@@ -135,6 +142,24 @@ function max_hs(times, data)
     return maxs, rows, years
 end
 
+function max_pairs_date(al)
+    obs_max, rows, years = max_hs(al.times, al.obs_aligned)
+    obs_max = obs_max ./ 100                                   # cm -> m
+    sim_max = fill(NaN, size(rows))
+    for j in axes(rows, 2), iy in axes(rows, 1)
+        rows[iy, j] > 0 && (sim_max[iy, j] = Float64(al.sim_aligned[rows[iy, j], j]))
+    end
+    return obs_max, sim_max, years
+end
+
+function max_pairs(al)
+    obs_max, _, years = max_hs(al.times, al.obs_aligned)
+    obs_max = obs_max ./ 100                                   # cm -> m
+    sim_max, _ = max_hs(al.times, al.sim_aligned)
+    return obs_max, sim_max, years
+end
+
+# **** Aligning obs/sims ****
 function align_data(obs, sim)
 
     if :attributes in fieldnames(typeof(obs))
@@ -199,72 +224,9 @@ function align_data(obs, sim)
 
 end
 
-bias(sim, obs) = nanmean(sim .- obs)
-rmse(sim, obs) = sqrt(nanmean((sim .- obs) .^ 2))
-r2(sim, obs) = nancor(obs, sim)^2
-
-
 # **************************************
-# Plots and exported results
-function finalize_band_figure!(f, state)
-    foreach(ax -> axislegend(ax; position = :rt), state.axes)
-    colsize!(f.layout, 2, Fixed(180))
-    linkxaxes!(state.axes...)
-    foreach(ax -> hidexdecorations!(ax; ticks = false, grid = false), state.axes[1:end-1])
-    state.axes[end].xlabel = "time"
-    return f
-end
-
-function station_metrics(obs, sim, config, run_id; min_days = 30, tol = 0.0)
-    _, obs_aligned, sim_aligned, altitudes, massifs, ids = align_data(obs, daily_mean(sim))
-
-    rows = map(eachindex(ids)) do j
-        o = obs_aligned[:, j] ./ 100            # cm -> m
-        s = Float64.(sim_aligned[:, j])
-
-        # keep days with both values valid, dropping days where both are snow-free
-        keep = [!isnan(o[i]) && !isnan(s[i]) && !(o[i] <= tol && s[i] <= tol)
-                for i in eachindex(o)]
-        o, s = o[keep], s[keep]
-
-        n = length(o)
-        ok = n >= min_days
-        (config = config, run_id = string(run_id), id = ids[j], altitude = altitudes[j], massif = massifs[j],
-         band_lo = 500 * floor(Int, altitudes[j] / 500),
-         n_days = n,
-         rmse = ok ? rmse(s, o) : NaN,
-         bias = ok ? bias(s, o) : NaN,
-         r2   = ok ? r2(s, o)   : NaN)
-    end
-    return DataFrame(rows)
-end
-
-# max_pairs now also returns the years (needs the max_hs returning maxs, rows, years)
-function max_pairs_date(al)
-    obs_max, rows, years = max_hs(al.times, al.obs_aligned)
-    obs_max = obs_max ./ 100                                   # cm -> m
-    sim_max = fill(NaN, size(rows))
-    for j in axes(rows, 2), iy in axes(rows, 1)
-        rows[iy, j] > 0 && (sim_max[iy, j] = Float64(al.sim_aligned[rows[iy, j], j]))
-    end
-    return obs_max, sim_max, years
-end
-
-function max_pairs(al)
-    obs_max, rows, years = max_hs(al.times, al.obs_aligned)
-    obs_max = obs_max ./ 100                                   # cm -> m
-    sim_max, _ = max_hs(al.times, al.sim_aligned)
-    return obs_max, sim_max, years
-end
-
-# select(alt, ids) -> station mask   |   select(alt, ids, years) -> station mask or years×stations mask
-function cell_mask(select, alt, ids, years)
-    m = applicable(select, alt, ids, years) ? select(alt, ids, years) : select(alt, ids)
-    m isa AbstractMatrix && return Matrix{Bool}(m)
-    return repeat(reshape(Bool.(m), 1, :), length(years), 1)   # same stations for every year
-end
-
-# --- group builders ---
+# Groups builders
+# **************************************
 # periods = [(1994, 2003), (2004, 2013), ...] (inclusive, on the calendar year of the annual max)
 year_groups(periods) = [("$(a)–$(b)", (alt, ids, yrs) -> (a .<= yrs .<= b) .& trues(1, length(ids)))
                         for (a, b) in periods]
@@ -277,26 +239,38 @@ each_year_groups(years) = [(string(y), (alt, ids, yrs) -> (yrs .== y) .& trues(1
 both(g1, g2) = ("$(g1[1]), $(g2[1])",
                 (alt, ids, yrs) -> cell_mask(g1[2], alt, ids, yrs) .& cell_mask(g2[2], alt, ids, yrs))
 
-# A group = (title, select) where select(altitudes, ids) returns a BitVector of stations
 band_groups(bands) = [("$(lo)–$(hi) m", (alt, ids) -> lo .<= alt .< hi) for (lo, hi) in bands]
 
-# massif_groups(massifs, names) =
-#     [(name, (alt, ids) -> massifs .== m) for (m, name) in zip(massifs_list, names)]
-    # names     : optional Dict massif number => display name
 massif_groups(massif_of, massifs; names = Dict{Int,String}()) =
-    [(get(names, m, "Massif $m"),
-      (alt, ids) -> BitVector([isequal(get(massif_of, i, missing), m) for i in ids]))
-     for m in massifs]
+    [(get(names, m, "Massif $m"), (alt, ids) -> BitVector([isequal(get(massif_of, i, missing), m) for i in ids])) for m in massifs]
 
 # names : Dict station id => name
 station_groups(station_ids, names_of) =
     [("$(get(names_of, id, "?"))", (alt, ids) -> ids .== id) for id in station_ids]
 
+# select(alt, ids) -> station mask   |   select(alt, ids, years) -> station mask or years×stations mask
+function cell_mask(select, alt, ids, years)
+    m = applicable(select, alt, ids, years) ? select(alt, ids, years) : select(alt, ids)
+    m isa AbstractMatrix && return Matrix{Bool}(m)
+    return repeat(reshape(Bool.(m), 1, :), length(years), 1)   # same stations for every year
+end
+
+# **************************************
+# Plots times series
+# **************************************
+function finalize_band_figure!(f, state)
+    foreach(ax -> axislegend(ax; position = :rt), state.axes)
+    colsize!(f.layout, 2, Fixed(180))
+    linkxaxes!(state.axes...)
+    foreach(ax -> hidexdecorations!(ax; ticks = false, grid = false), state.axes[1:end-1])
+    state.axes[end].xlabel = "time"
+    return f
+end
+
 # **************************************
 # Plots time series of the sims per "groups" 
 # Produces one plot with all the groups (different axes) each axes containing all sims
-function plot_runs(obs, sims; groups, fsize = (2000, 2500))
-    # keep only the groups that select at least one station
+function plot_runs(obs, sims; groups, fsize = (2000, 2500), tol = 0.0, min_days = 30)
     al = align_data(obs, daily_mean(last(first(sims))))
     groups = filter(g -> any(g[2](al.altitudes, al.ids)), groups)
     isempty(groups) && error("No station matches the requested groups")
@@ -310,11 +284,11 @@ function plot_runs(obs, sims; groups, fsize = (2000, 2500))
 
         for (g, (title, select)) in enumerate(groups)
             mask = select(al.altitudes, al.ids)
-            obs_g = al.obs_aligned[:, mask]
+            obs_g = al.obs_aligned[:, mask] ./ 100
             sim_g = al.sim_aligned[:, mask]
-            # sim_g[isnan.(obs_g)] .= NaN                   # compare only where obs exist
+            # sim_g[isnan.(obs_g)] .= NaN # compare only where obs exist
 
-            obs_mean = vec(nanmean(obs_g; dims = 2)) ./ 100
+            obs_mean = vec(nanmean(obs_g; dims = 2))
             sim_mean = Float64.(vec(nanmean(sim_g; dims = 2)))
 
             if k == 1
@@ -326,14 +300,25 @@ function plot_runs(obs, sims; groups, fsize = (2000, 2500))
             end
             lines!(axes[g], al.times, sim_mean; label = label, color = color)
 
-            sim_g[isnan.(obs_g)] .= NaN
-            sim_mean = Float64.(vec(nanmean(sim_g; dims = 2)))
-            stat_text = "$(label)\n" *
-                "RMSE: $(round(rmse(sim_mean, obs_mean), digits = 3)) m, " *
-                "Bias: $(round(bias(sim_mean, obs_mean), digits = 3)) m, " *
-                "R²:   $(round(r2(sim_mean, obs_mean), digits = 3))"
-            Label(stats[g][k, 1], stat_text; color = color, halign = :left,
-                  justification = :left, tellwidth = false)
+            # stats: same stations on both sides, then group mean
+            o, s = copy(obs_g), copy(sim_g)
+            bad = isnan.(o) .| isnan.(s)
+            o[bad] .= NaN; s[bad] .= NaN
+            obs_mean = vec(nanmean(o; dims = 2))
+            sim_mean = vec(nanmean(s; dims = 2))
+
+            keep = .!isnan.(obs_mean) .& .!isnan.(sim_mean) .& .!((obs_mean .<= tol) .& (sim_mean .<= tol))
+            om, sm = obs_mean[keep], sim_mean[keep]
+
+            stat_text = if length(om) >= min_days
+                "$(label)\n" *
+                "RMSE: $(round(rmse(sm, om), digits = 3)) m, " *
+                "Bias: $(round(bias(sm, om), digits = 3)) m, " *
+                "R²:   $(round(r2(sm, om), digits = 3))"
+            else
+                "$(label)\nnot enough days ($(length(om)))"
+            end
+            Label(stats[g][k, 1], stat_text; color = color, halign = :left, justification = :left, tellwidth = false)
         end
     end
 
@@ -344,64 +329,38 @@ end
 # **************************************
 # Plots scatter between obs and sim per sim categorized by "groups" selection
 # Produces one plot per sim
-function plot_scatter_run(obs, label, sim; groups, fsize = (1100, 600), csv = nothing)
-    al = align_data(obs, daily_mean(sim))
-    obs_max, sim_max, years = max_pairs(al)          # years × stations
-
-    masks  = [cell_mask(sel, al.altitudes, al.ids, years) for (_, sel) in groups]
-    keep   = findall(M -> any(M .& .!isnan.(obs_max) .& .!isnan.(sim_max)), masks)
-    isempty(keep) && error("No data matches the requested groups")
-    groups, masks = groups[keep], masks[keep]
-
+function plot_scatter_run(stats; fsize = (1100, 600))
+    label = first(stats).config
     f = Figure(size = fsize)
     ax = Axis(f[1, 1]; xlabel = "Obs annual max HS [m]",
-              ylabel = "Sim HS at obs max date [m]", title = label, aspect = 1)
-    stats = GridLayout(f[1, 2]; tellheight = false, valign = :top)
+              ylabel = "Sim annual max HS [m]", title = label, aspect = 1)
+    panel = GridLayout(f[1, 2]; tellheight = false, valign = :top)
 
-    rows = NamedTuple[]   
-    lim = 0.0
-    for (g, ((title, _), M)) in enumerate(zip(groups, masks))
+    lim = maximum(max(maximum(s.x), maximum(s.y)) for s in stats if !isempty(s.x))
+    for (g, s) in enumerate(stats)
         color = Makie.wong_colors()[mod1(g, 7)]
-        ok = M .& .!isnan.(obs_max) .& .!isnan.(sim_max)
-        x, y = obs_max[ok], sim_max[ok]
-
-        nst  = count(vec(any(ok; dims = 1)))          # stations with at least one point
-        name = "$title (n=$(length(x)), $nst st.)"
-        scatter!(ax, x, y; color = color, markersize = 8, label = name)
-        r_rmse, r_bias, r_r2 = rmse(y, x), bias(y, x), r2(y, x)
-        r_factor = r_bias / mean(x)
-        push!(rows, (config = label, group = title, n_points = length(x), n_stations = nst, rmse = r_rmse, bias = r_bias, r2 = r_r2, factor = r_factor))
-
-        lim = max(lim, maximum(x), maximum(y))
-        stat_text = "$name\n" *
-            "RMSE: $(round(rmse(y, x), digits = 3)) m, " *
-            "Bias: $(round(bias(y, x), digits = 3)) m, " *
-            "R²: $(round(r2(y, x), digits = 3))"
-        Label(stats[g, 1], stat_text; color = color, halign = :left,
+        name  = "$(s.group) (n=$(s.n_points), $(s.n_stations) st.)"
+        scatter!(ax, s.x, s.y; color = color, markersize = 8, label = name)
+        txt = isnan(s.rmse) ? "$name\nnot enough points" :
+            "$name\nRMSE: $(round(s.rmse, digits = 3)) m, " *
+            "Bias: $(round(s.bias, digits = 3)) m, R²: $(round(s.r2, digits = 3))"
+        Label(panel[g, 1], txt; color = color, halign = :left,
               justification = :left, tellwidth = false)
     end
-
-    lines!(ax, [0, lim], [0, lim]; color = :black, linestyle = :dash)   # 1:1
+    lines!(ax, [0, lim], [0, lim]; color = :black, linestyle = :dash)
     limits!(ax, 0, lim * 1.05, 0, lim * 1.05)
     axislegend(ax; position = :rb)
     colsize!(f.layout, 2, Relative(0.4))
-
-    if !isnothing(csv)
-        mkpath(dirname(csv))
-        CSV.write(csv, DataFrame(rows); append = isfile(csv))   # header only on first write
-    end
     return f
 end
-
-plot_scatter_runs(obs, sims; groups, kwargs...) =
-    [label => plot_scatter_run(obs, label, sim; groups = groups, kwargs...)
-     for (label, sim) in sims]
+plot_scatter_runs(obs, sims; groups, fsize = (1100, 600), kwargs...) =
+    [label => plot_scatter_run(st; fsize = fsize) for (label, st) in scatter_stats_runs(obs, sims; groups = groups, kwargs...)]
 
 # **************************************
 # Plots time series of the mean values of the different stations grouped by "groups" selection (alt, massif, station, year...)
 # Produces one plot per group with all sims on it
 # Allows to choose the period that is plotted 
-function plot_year_runs(obs, sims; groups, period = (nothing, nothing), fsize = (1400, 600))
+function plot_year_runs(obs, sims; groups, period = (nothing, nothing), fsize = (1400, 600), tol = 0.0, min_days = 30)
     t0, t1 = period     # e.g. (Date(2010, 8, 1), Date(2011, 7, 31)); `nothing` = no bound
 
     # align each sim once
@@ -429,24 +388,33 @@ function plot_year_runs(obs, sims; groups, period = (nothing, nothing), fsize = 
             any(tm) || error("No data in the requested period for $label")
 
             times = al.times[tm]
-            obs_g = al.obs_aligned[tm, mask]
+            obs_g = al.obs_aligned[tm, mask] ./ 100
             sim_g = al.sim_aligned[tm, mask]
 
-            obs_mean = vec(nanmean(obs_g; dims = 2)) ./ 100
-            sim_mean = Float64.(vec(nanmean(sim_g; dims = 2)))
+            # curves: all days
+            obs_curve = vec(nanmean(obs_g; dims = 2))
+            sim_curve = vec(nanmean(sim_g; dims = 2))
+            k == 1 && lines!(ax, times, obs_curve; label = "obs", color = :black, linewidth = 2.5)
+            lines!(ax, times, sim_curve; label = label, color = color)
 
-            k == 1 && lines!(ax, times, obs_mean; label = "obs", color = :black, linewidth = 2.5)
-            lines!(ax, times, sim_mean; label = label, color = color)
+            o, s = copy(obs_g), copy(sim_g)
+            bad = isnan.(o) .| isnan.(s)
+            o[bad] .= NaN; s[bad] .= NaN
+            obs_mean = vec(nanmean(o; dims = 2))
+            sim_mean = vec(nanmean(s; dims = 2))
 
-            # stats: compare only where obs exist
-            sim_g[isnan.(obs_g)] .= NaN
-            sim_mean = Float64.(vec(nanmean(sim_g; dims = 2)))
-            stat_text = "$(label)\n" *
-                "RMSE: $(round(rmse(sim_mean, obs_mean), digits = 3)) m, " *
-                "Bias: $(round(bias(sim_mean, obs_mean), digits = 3)) m, " *
-                "R²:   $(round(r2(sim_mean, obs_mean), digits = 3))"
-            Label(stats[k, 1], stat_text; color = color, halign = :left,
-                  justification = :left, tellwidth = false)
+            keep = .!isnan.(obs_mean) .& .!isnan.(sim_mean) .& .!((obs_mean .<= tol) .& (sim_mean .<= tol))
+            om, sm = obs_mean[keep], sim_mean[keep]
+
+            stat_text = if length(om) >= min_days
+                "$(label)\n" *
+                "RMSE: $(round(rmse(sm, om), digits = 3)) m, " *
+                "Bias: $(round(bias(sm, om), digits = 3)) m, " *
+                "R²:   $(round(r2(sm, om), digits = 3))"
+            else
+                "$(label)\nnot enough days ($(length(om)))"
+            end
+            Label(stats[k, 1], stat_text; color = color, halign = :left, justification = :left, tellwidth = false)
         end
 
         finalize_band_figure!(f, (axes = [ax], stats = [stats]))
@@ -516,3 +484,106 @@ end
 #     end
 #     return figs
 # end
+
+# **************************************
+# Plots metrics
+# **************************************
+function boxplot_metric(metrics_path, col::Symbol; groups = nothing)
+    metrics = CSV.read(metrics_path, DataFrame)
+    df = filter(r -> !ismissing(r[col]) && !isnan(r[col]), metrics)
+    configs = unique(df.config)                       # keeps the run order
+
+    # one subset per group, tagged with its index (same rule as heatmap_metrics)
+    if isnothing(groups)
+        df.grp = fill(1, nrow(df))
+        titles = [""]
+    else
+        parts = DataFrame[]
+        titles = String[]
+        for (title, select) in groups
+            m = collect(Bool, select(df.altitude, df.id))
+            any(m) || continue                        # drop groups with no station
+            sub = df[m, :]
+            sub.grp = fill(length(titles) + 1, nrow(sub))
+            push!(parts, sub)
+            push!(titles, title)
+        end
+        isempty(parts) && error("No station matches the requested groups")
+        df = reduce(vcat, parts)                      # a station in two groups appears in both
+    end
+
+    x = Int.(indexin(df.config, configs))
+
+    f = Figure(size = (1000, 500))
+    ax = Axis(f[1, 1]; xticks = (1:length(configs), configs), ylabel = string(col),
+              xticklabelrotation = π / 6)
+
+    if isnothing(groups)
+        boxplot!(ax, x, df[!, col])
+    else
+        cols = cgrad(:viridis, max(length(titles), 2); categorical = true)
+        boxplot!(ax, x, df[!, col]; dodge = df.grp, color = cols[df.grp])
+        Legend(f[1, 2], [PolyElement(color = cols[i]) for i in eachindex(titles)],
+               titles, "Group")
+    end
+
+    col == :bias && hlines!(ax, 0; color = :black, linestyle = :dash)
+    return f
+end
+
+function heatmap_metrics(metrics_path, col::Symbol; groups = nothing, ncols = 3,
+                         panel = (480, 420))
+    metrics = CSV.read(metrics_path, DataFrame)
+    df = filter(r -> !ismissing(r[col]) && !isnan(r[col]), metrics)
+
+    parts = split.(df.config, "|")
+    df.p1 = strip.(first.(parts))
+    df.p2 = strip.(last.(parts))
+
+    xs = sort(unique(df.p2))
+    ys = sort(unique(df.p1))
+
+    # one subset per group, using the same select(alt, ids) as in plot_runs
+    subsets = isnothing(groups) ? [("", df)] : [(title, df[collect(Bool, select(df.altitude, df.id)), :]) for (title, select) in groups]
+    # subsets = isnothing(groups) ? [("", df)] : [(title, df[df.group .== title, :]) for (title, _) in groups]
+    subsets = filter(s -> !isempty(s[2]), subsets)
+    isempty(subsets) && error("No group found in the file")
+    function matrix(sub)
+        agg = combine(groupby(sub, [:p1, :p2]), col => mean => :val)
+        Z = fill(NaN, length(xs), length(ys))
+        for r in eachrow(agg)
+            Z[findfirst(==(r.p2), xs), findfirst(==(r.p1), ys)] = r.val
+        end
+        return Z
+    end
+    Zs = [matrix(sub) for (_, sub) in subsets]
+
+    label  = uppercase(String(col))
+    signed = col == :bias
+    allv   = filter(!isnan, vcat(vec.(Zs)...))
+    crange = signed ? (let m = maximum(abs, allv); (-m, m) end) : extrema(allv)
+    cmap   = signed ? :RdBu : :viridis
+
+    n  = length(subsets)
+    nc = min(ncols, n)
+    nr = cld(n, nc)
+    fig = Figure(size = (nc * panel[1] + 120, nr * panel[2]))
+
+    local hm
+    for (k, ((gtitle, sub), Z)) in enumerate(zip(subsets, Zs))
+        nst = hasproperty(sub, :id) ? length(unique(sub.id)) : maximum(sub.n_stations)
+        ax = Axis(fig[cld(k, nc), mod1(k, nc)];
+                  title = isnothing(groups) ? label : "$label, $gtitle (n=$nst)",
+                  xticks = (1:length(xs), xs), yticks = (1:length(ys), string.(ys)),
+                  xticklabelrotation = π/4, ylabel = "precip")
+        hm = heatmap!(ax, 1:length(xs), 1:length(ys), Z;
+                      colormap = cmap, colorrange = crange, nan_color = :lightgray)
+        for i in eachindex(xs), j in eachindex(ys)
+            isnan(Z[i, j]) && continue
+            text!(ax, i, j; text = string(round(Z[i, j]; digits = 2)), fontsize = 11,
+                  align = (:center, :center), color = signed ? :black : :white)
+        end
+    end
+    Colorbar(fig[:, nc + 1], hm; label = label)
+    return fig
+end

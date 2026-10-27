@@ -19,13 +19,8 @@ end
 function build_path_settings()
     return OrderedDict(
         "metrics" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/stations/metrics.csv",  #z0/metrics_z0.csv #precip/metrics_precip
-        "alt_band" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/stations/snowdepth_band.png",
-        "multi_station" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/stations/snowdepth_stations_z0.png",
-        "single_station" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/stations/snowdepth_calib_station_", #_biascor
-        "boxplot_band" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/albedo/rmse_by_config_band.png",
-        "boxplot" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/albedo/rmse_by_config.png",
-        "heatmap" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/stations/rmse_heatmap.png",
-        "alt_scatter" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/albedo/",
+        "hs_metrics" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/stations/metrics_max_hs.csv",
+        "plot" => "C:/Users/navarrel/Documents/Workspace/Plots/figure/calib/stations/test/",
     )
 end
 

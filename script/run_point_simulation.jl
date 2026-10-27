@@ -242,7 +242,7 @@ end
 
 Tf = Float32
 verbose = true
-include("obs_compare.jl")
+include("comparison_plots.jl")
 include("tuning_track.jl")
 
 # **************************************************************************************************************
@@ -256,14 +256,14 @@ include("tuning_track.jl")
     ])
 
     precips = [
-        # "raw" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 1)],
+        # "default" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 1)],
         # "105%" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 1.05)],
         # "95%" => [("INIT", "prec_multi") => scheme(LinearPrecip; mult = 0, cst = 0.95)],
         # "linear" => [("INIT", "prec_multi") => scheme(LinearPrecip; )],
         # "exp" => [("INIT", "prec_multi") => scheme(ExpPrecip; )],
         "bias" => [("INIT", "prec_multi") => scheme(MaxBiasPrecip; )],
-        "bias105%" => [("INIT", "prec_multi") => scheme(MaxBiasPrecip; cst = 1.05)],
-        "bias95%" => [("INIT", "prec_multi") => scheme(MaxBiasPrecip;  cst = 0.95)],
+        "bias105%" => [("INIT", "prec_multi") => scheme(MaxBiasPrecip; mult = 1.05)],
+        "bias95%" => [("INIT", "prec_multi") => scheme(MaxBiasPrecip;  mult = 0.95)],
 
     ]
     z0 = [
@@ -297,7 +297,7 @@ include("tuning_track.jl")
         # "alb alradt+amin0.65+adcelev2"    => [("TUNING", "physics", "snow_albedo") => scheme(PrognosticAlbedo; ALRADT = false, amin = 0.65, adc = ElevationTuned((1300, 2500), (1000, 5000)))],
     ]
 
-    runs = product_runs(precips, albedo)   # precips, z0, albedo 
+    runs = product_runs(precips, z0)   # precips, z0, albedo 
 
 # **************************************************************************************************************
 # Load data
@@ -319,38 +319,16 @@ obs = load_mdw_data("C:/Users/navarrel/Documents/Workspace/Data/obs/nivo/OBS_alp
 # Run simulation
 # **************************************************************************************************************
 sims, metrics = run_comparison(settings, obs, runs, Float32)
-
+@infiltrate
 # altitude bands, as before
 ALT_BANDS = [(0, 3000), (0, 500), (500, 1000), (1000, 1500), (1500, 2000), (2000, 2500), (2500, 3000)]
-names_of = Dict(Int(i) => n for (i, n) in zip(settings["INIT"]["list_id"], settings["INIT"]["name"])
-                     if !ismissing(i))
-massif_of     = Dict(Int(i) => m for (i, m) in zip(settings["INIT"]["list_id"], settings["INIT"]["massif"])
-                     if !ismissing(i))
+names_of  = Dict(Int(i) => n for (i, n) in zip(settings["INIT"]["list_id"], settings["INIT"]["name"]) if !ismissing(i))
+massif_of = Dict(Int(i) => m for (i, m) in zip(settings["INIT"]["list_id"], settings["INIT"]["massif"]) if !ismissing(i))
 
-# ********************************
-# Main plot
-# save(settings_path["alt_band"], plot_runs(obs, sims, cro; groups = band_groups(ALT_BANDS)))
-# save(settings_path["alt_band"], plot_runs(obs, sims; groups = band_groups(ALT_BANDS)))
-# figs = plot_scatter_runs(obs, sims; groups = band_groups(ALT_BANDS))
-# for (label, f) in figs
-#     save(settings_path["alt_scatter"]*"max_scatter_$(replace(label, r"[^\w.\-]+" => "_")).png", f)
-# end
-
-# ********************************
-# Other plots
-# a few single stations in one figure
-# names = station_names(last(first(sims)))
-# ids = sort(settings["INIT"]["list_id"])                              # your station ids
-# save(settings_path["multi_station"],
-#      plot_runs(obs, sims; groups = station_groups(ids, names), fsize = (1200, 300 * length(ids))))
-
-# one figure per station, without rerunning the model
-ids = sort(collect(skipmissing(settings["INIT"]["list_id"])))
-for id in ids
-    f = plot_runs(obs, sims; groups = station_groups([id], names_of), fsize = (1200, 500))
-    save(settings_path["single_station"]*"$(id).png", f)
-end
-
-# ********************************
-# Box plots
-# include("config_compare.jl")
+# **************************************************************************************************************
+# Plot simulation
+# **************************************************************************************************************
+groups = station_groups(sort(collect(skipmissing(settings["INIT"]["list_id"]))), names_of)
+# groups = band_groups(ALT_BANDS)
+# groups = massif_groups(massif_of, sort(unique(skipmissing(settings["INIT"]["massif"]))))
+# include("run_plots.jl")

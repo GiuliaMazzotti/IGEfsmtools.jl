@@ -3,7 +3,7 @@ abstract type AbstractCorrection{Tf <: Real} end
 abstract type AbstractPrecip{Tf} <: AbstractCorrection{Tf} end
 
 Base.@kwdef struct MaxBiasPrecip{Tf} <: AbstractPrecip{Tf}
-    cst::Tf = 1
+    mult::Tf = 1
 end
 
 Base.@kwdef struct LinearPrecip{Tf} <: AbstractPrecip{Tf}
@@ -37,7 +37,7 @@ Base.@kwdef struct TanhPrecip{Tf} <: AbstractPrecip{Tf}
     cst::Tf = 1.116
 end
 
-@inline precip_cor(c::MaxBiasPrecip{Tf}, bias_list) where {Tf} = Tf.(bias_list .*(-1)) .+ c.cst
+@inline precip_cor(c::MaxBiasPrecip{Tf}, bias_list) where {Tf} = Tf.(bias_list) .* c.mult
 
 @inline precip_cor(c::LinearPrecip{Tf}, elevation) where {Tf} = Tf.(elevation) .* c.mult .+ c.cst
 
